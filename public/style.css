@@ -1,0 +1,34 @@
+
+:root{
+     --textcolor: rgb(0, 67, 255);
+     --keyboard_input_color:  rgb(0, 131, 253);
+}
+
+body{
+    background-color: black;
+    font-family: 'Abel', sans-serif;
+}
+#d_thrust{
+    color: var(--textcolor);
+}
+#d_roll{
+    color: var(--textcolor);
+}
+#d_yaw{
+    color: var(--textcolor);
+}
+#d_pitch{
+    color: var(--textcolor);
+}
+#w{
+    color: var(--keyboard_input_color)
+}
+#a{
+    color: var(--keyboard_input_color)
+}
+#q{
+    color: var(--keyboard_input_color)
+}
+#thrust{
+    color: var(--keyboard_input_color)
+}

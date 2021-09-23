@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<link href="style.css" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Hardware Relay</title>
+</head>
+<body>
+    <div id="d_thrust">null</div>
+    <div id="d_pitch">null</div>
+    <div id="d_roll">null</div>
+    <div id="d_yaw">null</div>
+    <div id="w">0</div>
+    <div id="a">0</div>
+    <div id="q">0</div>
+    <div id="thrust">0</div>
+</body>
+<script src="keyboardinput.js"></script>
+<script src="input_parser.js"></script>
+</html>
