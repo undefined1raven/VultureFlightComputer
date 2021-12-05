@@ -10,6 +10,14 @@ const five = require('johnny-five');
 const acnt_link = '600e8c51-74e3-4b34-ac79-a704c5307848';//1f81601x-f713-4313-8fdb-f0c4c531c806 [permanent account ref req for vulture ownership and access control]
 let Servo_, Board_, Proximity_, Accelerometer_, IMU_, GPS_, board_, Pin_;
 
+///--Autonomy Preferances Storage--///
+var rth_pref_arr = [true, true, true]; //[2]true == auto | false == traceback
+var ca_pref_arr = [true, 2, true]; //[1]m
+var obj_recog_pref_arr = [true];
+var obj_tracking_pref_arr = [];
+var wnav_pref_arr = [false];
+
+
 ///--Global general purpose functions [gg]--///
 function getRandomInt(max) {
   return Math.floor(Math.random() * max);
@@ -59,11 +67,11 @@ if(hardware_enabled == true){
 var io = require('socket.io-client');
 app.use(express.static(path.join(__dirname, 'public')));
 
-//web_app: https://boiling-citadel-40139.herokuapp.com/
-//local: http://localhost:3300/
-//H2 local: https://localhost:3900/
+//web_app: ws://boiling-citadel-40139.herokuapp.com/
+//local: ws://localhost:3300/
+//H2 local: ws://localhost:3900/
 
-var socket = io.connect("ws://boiling-citadel-40139.herokuapp.com/", {reconnection: true});
+var socket = io.connect("ws://localhost:3300/", {reconnection: true});
 
 ////--Hardware Status Overview vars--////
 var imu_connected_status;
@@ -102,7 +110,22 @@ socket.on("connect_error", (err) => {
 
 ////--this ⇄ Server | Telemetry Relay to: Advanced_Telemetry F/E, Command--////
 socket.on('connect', (s) => {
-
+  ////--Advanced_Telemetry F/E ⇄ Server ⇄ this | Autonomy Pref Sync&Transmission--////
+  socket.on('rth_pref_arr_xq', _rth_pref_arr => {
+    rth_pref_arr = _rth_pref_arr;
+  });
+  socket.on('ca_pref_arr_xq', _ca_pref_arr => {
+    ca_pref_arr = _ca_pref_arr;
+  });
+  socket.on('wnav_pref_arr_xq', _wnav_pref_arr => {
+    wnav_pref_arr = _wnav_pref_arr;
+  });
+  socket.on('obj_recog_pref_arr_xq', _obj_recog_pref_arr => {
+    obj_recog_pref_arr = _obj_recog_pref_arr;
+  });
+  socket.on('vulture_autonomy_prefs_req_xq', () => {
+    socket.emit('vulture_local_autonomy_pref_broadcast', {rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr});
+  });
 
   //artificial sonar array dev purposes [dev]
   setInterval(() => {
@@ -115,6 +138,7 @@ socket.on('connect', (s) => {
   
   ///--this ⇄ Server | ID handshake for req for client link--///
   socket.emit('vulture_online_signal', "uplink established");
+  socket.emit('vulture_local_autonomy_pref_broadcast', {rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr});
   socket.emit('vulture_ownr_link', acnt_link);
   
   ///--this ⇄ Server | client CLI parser and execution--///
