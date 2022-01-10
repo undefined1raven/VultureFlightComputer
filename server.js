@@ -37,9 +37,9 @@ var hardware_enabled = false;
 var sec_acc_acivs = true;
 var imu_acivs = true;
 var s1_acivs = false;
-var s2_acivs = false;
+var s2_acivs = true;
 var s3_acivs = false;
-var s4_acivs = false;
+var s4_acivs = true;
 var s5_acivs = false;
 var gps_acivs = false;
 var alt_acivs = true;
@@ -47,7 +47,7 @@ var alt_acivs = true;
 //array telemetry relay status to Advanced_Telemetry F/E
 let sensor_array_active_status = [sec_acc_acivs, imu_acivs, s1_acivs, s2_acivs, s3_acivs, s4_acivs, s5_acivs, gps_acivs, hardware_enabled, alt_acivs];
 if (hardware_enabled == false) {
-  sensor_array_active_status = [false, false, false, false, false, false, false, false];
+  sensor_array_active_status = [true, true, true, true, true, true, true, true];
 }
 
 if (hardware_enabled == true) {
@@ -65,15 +65,14 @@ if (hardware_enabled == true) {
 
 
 var io = require('socket.io-client');
-const { captureRejectionSymbol } = require('events');
-const { ok } = require('assert');
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-//web_app: ws://boiling-citadel-40139.herokuapp.com/
+//web_app: wss://vulture-uplink.herokuapp.com/
 //local: ws://localhost:3300/
 //H2 local: ws://localhost:3900/
 
-var socket = io.connect("ws://localhost:3300/", { reconnection: true });
+var socket = io.connect("wss://vulture-uplink.herokuapp.com/", { reconnection: true });
 
 ////--Hardware Status Overview vars--////
 var imu_connected_status;
@@ -180,11 +179,11 @@ socket.on('connect', (s) => {
   });
   //artificial sonar array dev purposes [dev]
   setInterval(() => {
-    socket.emit('sonar_1_rebound', { payload: getRandomInt(1000), id: acnt_link });
+    socket.emit('sonar_1_rebound', { payload: getRandomInt(400), id: acnt_link });
     socket.emit('sonar_2_rebound', getRandomInt(400));
     socket.emit('sonar_3_rebound', getRandomInt(400));
     socket.emit('sonar_4_rebound', getRandomInt(400));
-    socket.emit('sonar_5_rebound', getRandomInt(1));
+    socket.emit('sonar_5_rebound', getRandomInt(2));
   }, 1000);
 
   ///--this ⇄ Server | ID handshake for req for client link--///
@@ -389,6 +388,7 @@ socket.on('connect', (s) => {
         });
         soanr_2.on("change", () => {
           const { centimeters } = soanr_2;
+          console.log(centimeters)
           socket.emit('sonar_2_rebound', centimeters);
           socket.emit('gamma_board_hs');
           sonar_2_connection_status_bin = Date.now();
@@ -415,10 +415,11 @@ socket.on('connect', (s) => {
       if (sensor_array_active_status[5] == true) {
         const soanr_4 = new Proximity_({
           controller: "HCSR04",
-          pin: 6
+          pin: 8
         });
         soanr_4.on("change", () => {
           const { centimeters } = soanr_4;
+          console.log(`${centimeters} right`)
           socket.emit('sonar_4_rebound', centimeters);
           socket.emit('gamma_board_hs');
           sonar_4_connection_status_bin = Date.now();
@@ -565,9 +566,14 @@ socket.on('connect', (s) => {
     else {
       barometer_connection_status = true;
     }
-
+    var sensor_array_hardware_cs;
     //Broadcast//
-    var sensor_array_hardware_cs = [imu_connected_status, axdl_connection_status, sonar_1_connection_status, sonar_2_connection_status, sonar_3_connection_status, sonar_4_connection_status, sonar_5_connection_status, gps_position_connection_status, barometer_connection_status];
+    if(hardware_enabled){
+      sensor_array_hardware_cs = [imu_connected_status, axdl_connection_status, sonar_1_connection_status, sonar_2_connection_status, sonar_3_connection_status, sonar_4_connection_status, sonar_5_connection_status, gps_position_connection_status, barometer_connection_status];
+    }
+    else{
+      sensor_array_hardware_cs = [true, true, true, true, true, true, true, true, true];
+    }
     socket.emit('sensor_array_hardware_cs', sensor_array_hardware_cs);
 
     socket.emit('sensor_array_es', sensor_array_active_status);
