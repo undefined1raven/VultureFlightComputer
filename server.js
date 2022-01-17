@@ -10,6 +10,28 @@ const five = require('johnny-five');
 const acnt_link = '600e8c51-74e3-4b34-ac79-a704c5307848';//1f81601x-f713-4313-8fdb-f0c4c531c806 [permanent account ref req for vulture ownership and access control]
 let Servo_, Board_, Proximity_, Accelerometer_, IMU_, GPS_, board_, Pin_;
 
+///--Omega Hardware Interface Board COMMS--///
+
+var omega_iox = require('socket.io-client');
+var omega_sktx = omega_iox.connect("ws://localhost:7200/", { reconnection: true });
+
+
+omega_sktx.on('connect', () => {
+  console.log(`Omega Uplink Active | UNX [${Date.now()}]`)
+  // setInterval(() => {
+  //   sktx.emit('ct', Date.now());
+  // }, 3000);
+});
+
+io_i.on('connection', (x) => {
+  x.on('omega_heartbeat', px => {
+    console.log(`Omega Downlink Active | UNX [${Date.now()}]`)
+  });
+  x.on('ix_imu_data_pkg_broadcast', omega_telemetry_pkg => {
+    socket.emit('imu_data_pkg_broadcast', omega_telemetry_pkg.payload);
+  });
+})
+
 ///--Autonomy Preferances Storage--///
 var rth_pref_arr = [true, true, true]; //[2]true == auto | false == traceback
 var ca_pref_arr = [true, 2, true]; //[1]m
@@ -37,9 +59,9 @@ var hardware_enabled = false;
 var sec_acc_acivs = true;
 var imu_acivs = true;
 var s1_acivs = false;
-var s2_acivs = true;
+var s2_acivs = false;
 var s3_acivs = false;
-var s4_acivs = true;
+var s4_acivs = false;
 var s5_acivs = false;
 var gps_acivs = false;
 var alt_acivs = true;
@@ -69,10 +91,11 @@ var io = require('socket.io-client');
 app.use(express.static(path.join(__dirname, 'public')));
 
 //web_app: wss://vulture-uplink.herokuapp.com/
+//web_app_cx: wss://vulture-uplink.com/
 //local: ws://localhost:3300/
 //H2 local: ws://localhost:3900/
 
-var socket = io.connect("wss://vulture-uplink.herokuapp.com/", { reconnection: true });
+var socket = io.connect("ws://localhost:3300/", { reconnection: true });
 
 ////--Hardware Status Overview vars--////
 var imu_connected_status;
