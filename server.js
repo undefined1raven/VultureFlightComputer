@@ -14,23 +14,40 @@ let Servo_, Board_, Proximity_, Accelerometer_, IMU_, GPS_, board_, Pin_;
 
 var omega_iox = require('socket.io-client');
 var omega_sktx = omega_iox.connect("ws://localhost:7200/", { reconnection: true });
-
+var omega_controller_last_unx = 0;
+var omega_controller_cs = false;
 
 omega_sktx.on('connect', () => {
   console.log(`Omega Uplink Active | UNX [${Date.now()}]`)
-  // setInterval(() => {
-  //   sktx.emit('ct', Date.now());
-  // }, 3000);
+  setInterval(() => {
+    if(Math.abs(omega_controller_last_unx - Date.now()) > 1000){
+      omega_controller_cs = false;
+    }
+    else{
+      omega_controller_cs = true;
+    }
+  }, 200);
 });
 
 io_i.on('connection', (x) => {
+
+
+
+
   x.on('omega_heartbeat', px => {
     console.log(`Omega Downlink Active | UNX [${Date.now()}]`)
+  });
+  x.on('omega_ct', unx => {
+    omega_controller_last_unx = unx.payload;
   });
   x.on('ix_imu_data_pkg_broadcast', omega_telemetry_pkg => {
     socket.emit('imu_data_pkg_broadcast', omega_telemetry_pkg.payload);
   });
-})
+});
+  ///HIB Connection Status Handler///
+  setInterval(() => {
+    socket.emit('omega_controller_cs', omega_controller_cs);
+  }, 200);
 
 ///--Autonomy Preferances Storage--///
 var rth_pref_arr = [true, true, true]; //[2]true == auto | false == traceback
@@ -87,6 +104,7 @@ if (hardware_enabled == true) {
 
 
 var io = require('socket.io-client');
+const { emit } = require('process');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -158,10 +176,10 @@ socket.on('connect', (s) => {
     socket.emit('vulture_local_autonomy_pref_broadcast', { rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
   });
   socket.on('rth_status_xq', rth_status => {
-    if(rth_status){
+    if (rth_status) {
       RTH = 1;
     }
-    else{
+    else {
       RTH = 0;
     }
     socket.emit('vulture_local_autonomy_rth_status_broadcast', RTH);
@@ -171,19 +189,19 @@ socket.on('connect', (s) => {
     socket.emit('vulture_local_autonomy_ca_status_broadcast', CA);
   });
   socket.on('wnav_status_xq', _wnav_status => {
-    if(_wnav_status){
+    if (_wnav_status) {
       WNAV = 1;
     }
-    else{
+    else {
       WNAV = 0;
     }
     socket.emit('vulture_local_autonomy_wnav_status_broadcast', WNAV);
   });
   socket.on('obj_recog_status_xq', (_obj_recog_status) => {
-    if(_obj_recog_status){
+    if (_obj_recog_status) {
       OBJ_RECOG = 1;
     }
-    else{
+    else {
       OBJ_RECOG = 0;
     }
     socket.emit('vulture_local_autonomy_obj_recog_status_broadcast', OBJ_RECOG);
@@ -591,10 +609,10 @@ socket.on('connect', (s) => {
     }
     var sensor_array_hardware_cs;
     //Broadcast//
-    if(hardware_enabled){
+    if (hardware_enabled) {
       sensor_array_hardware_cs = [imu_connected_status, axdl_connection_status, sonar_1_connection_status, sonar_2_connection_status, sonar_3_connection_status, sonar_4_connection_status, sonar_5_connection_status, gps_position_connection_status, barometer_connection_status];
     }
-    else{
+    else {
       sensor_array_hardware_cs = [true, true, true, true, true, true, true, true, true];
     }
     socket.emit('sensor_array_hardware_cs', sensor_array_hardware_cs);
