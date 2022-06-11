@@ -8,7 +8,7 @@ const io_i = socketio(server);
 const forever = require('forever');
 const five = require('johnny-five');
 const encryptor = require('simple-encryptor')('FJSLG345KJKL43LJKF04KF4MJF034JF0P34KFKWJAPVPSMVNVPXPWFMKNBUBYU');//process.env.WEB_RELAY_ENCRYPTION_KEY
-const vid = '2932c024-5409-4099-b239-9dc95f778f28';//1f81601x-f713-4313-8fdb-f0c4c531c806 [permanent vulture id ref req for data transit]
+const vid = 'a5ef02a9-7838-42bc-b4e8-f156cc1f06c7';//1f81601x-f713-4313-8fdb-f0c4c531c806 [permanent vulture id ref req for data transit]
 let Servo_, Board_, Proximity_, Accelerometer_, IMU_, GPS_, board_, Pin_;
 
 
@@ -39,10 +39,10 @@ var omega_controller_cs = false;
 omega_sktx.on('connect', () => {
   console.log(`Omega Uplink Active | UNX [${Date.now()}]`)
   setInterval(() => {
-    if(Math.abs(omega_controller_last_unx - Date.now()) > 1000){
+    if (Math.abs(omega_controller_last_unx - Date.now()) > 1000) {
       omega_controller_cs = false;
     }
-    else{
+    else {
       omega_controller_cs = true;
     }
   }, 200);
@@ -60,10 +60,10 @@ io_i.on('connection', (x) => {
     socket.emit('imu_data_pkg_broadcast', omega_telemetry_pkg.payload);
   });
 });
-  ///HIB Connection Status Handler///
-  setInterval(() => {
-    socket.emit('omega_controller_cs', omega_controller_cs);
-  }, 200);
+///HIB Connection Status Handler///
+setInterval(() => {
+  socket.emit('omega_controller_cs', omega_controller_cs);
+}, 200);
 
 ///--Autonomy Preferances Storage--///
 var rth_pref_arr = [true, true, true]; //[2]true == auto | false == traceback
@@ -129,8 +129,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 //local: ws://localhost:3300/
 //H2 local: ws://localhost:3900/
 ///vf
+//vue
+var socket = io.connect("ws://localhost:7780/", { reconnection: true });
+// var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true });
+
+//non vue
 // var socket = io.connect("ws://localhost:3300/", { reconnection: true });
-var socket = io.connect("wss://vulture-uplink.com/", { reconnection: true });
+// var socket = io.connect("wss://vulture-uplink.com/", { reconnection: true });
 
 ////--Hardware Status Overview vars--////
 var imu_connected_status;
@@ -144,16 +149,16 @@ var sonar_5_connection_status_bin = 0;
 var gps_position_connection_status_bin = 0;
 var gps_nav_connection_status_bin = 0;
 var barometer_connection_status_bin = 0;
-var axdl_connection_status;
-var sonar_1_connection_status;
-var sonar_2_connection_status;
-var sonar_3_connection_status;
-var sonar_4_connection_status;
-var sonar_5_connection_status;
-var gps_position_connection_status;
-var gps_nav_connection_status;
-var barometer_connection_status;
-var magnetometer_connection_status = true; 
+var axdl_connection_status = false;
+var sonar_1_connection_status = false;
+var sonar_2_connection_status = false;
+var sonar_3_connection_status = false;
+var sonar_4_connection_status = false;
+var sonar_5_connection_status = false;
+var gps_position_connection_status = false;
+var gps_nav_connection_status = false;
+var barometer_connection_status = false;
+var magnetometer_connection_status = false;
 
 var RTH = 0;
 var CA = 0;
@@ -170,33 +175,31 @@ socket.on("connect_error", (err) => {
 
 
 
-
 ////--this ⇄ Server | Telemetry Relay to: Advanced_Telemetry F/E, Command--////
 socket.on('connect', (s) => {
 
   /// Global Relay handshake ///
-  
-  socket.emit('vulture_handshake', {handshake_vid: vid}); 
+  socket.emit('vulture_handshake', { handshake_vid: vid });
 
   ////--Advanced_Telemetry F/E ⇄ Server ⇄ this | Autonomy Pref Sync&Transmission--////
   socket.on('rth_pref_arr_xq', _rth_pref_arr => {
     rth_pref_arr = _rth_pref_arr;
-    socket.emit('vulture_local_autonomy_pref_broadcast', {vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
+    socket.emit('vulture_local_autonomy_pref_broadcast', { vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
   });
   socket.on('ca_pref_arr_xq', _ca_pref_arr => {
     ca_pref_arr = _ca_pref_arr;
-    socket.emit('vulture_local_autonomy_pref_broadcast', {vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
+    socket.emit('vulture_local_autonomy_pref_broadcast', { vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
   });
   socket.on('wnav_pref_arr_xq', _wnav_pref_arr => {
     wnav_pref_arr = _wnav_pref_arr;
-    socket.emit('vulture_local_autonomy_pref_broadcast', {vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
+    socket.emit('vulture_local_autonomy_pref_broadcast', { vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
   });
   socket.on('obj_recog_pref_arr_xq', _obj_recog_pref_arr => {
     obj_recog_pref_arr = _obj_recog_pref_arr;
-    socket.emit('vulture_local_autonomy_pref_broadcast', {vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
+    socket.emit('vulture_local_autonomy_pref_broadcast', { vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
   });
   socket.on('vulture_autonomy_prefs_req_xq', () => {
-    socket.emit('vulture_local_autonomy_pref_broadcast', {vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
+    socket.emit('vulture_local_autonomy_pref_broadcast', { vid: vid, rth: rth_pref_arr, ca: ca_pref_arr, obj_recog: obj_recog_pref_arr, wnav: wnav_pref_arr, obj_tracking: obj_tracking_pref_arr });
   });
   socket.on('rth_status_xq', rth_status => {
     if (rth_status) {
@@ -243,11 +246,20 @@ socket.on('connect', (s) => {
   });
   //artificial sonar array dev purposes [dev]
   setInterval(() => {
-    socket.emit('sonar_1_rebound', { telemetry: getRandomInt(400), vid: vid });
+    socket.emit('sonar_1_rebound', { telemetry: getRandomInt(255), vid: vid });
     socket.emit('sonar_2_rebound', { telemetry: getRandomInt(400), vid: vid });
     socket.emit('sonar_3_rebound', { telemetry: getRandomInt(400), vid: vid });
     socket.emit('sonar_4_rebound', { telemetry: getRandomInt(400), vid: vid });
     socket.emit('sonar_5_rebound', { telemetry: getRandomInt(400), vid: vid });
+    socket.emit('sonar_telemetry_pkg', {
+      telemetry: {
+        fwd_sonar: getRandomInt(400),
+        lft_sonar: getRandomInt(400),
+        bwd_sonar: getRandomInt(400),
+        rgt_sonar: getRandomInt(400),
+        gnd_sonar: getRandomInt(400)
+      }, vid: vid
+    })
   }, 1000);
 
   ///--this ⇄ Server | ID handshake for req for client link--///
@@ -345,7 +357,7 @@ socket.on('connect', (s) => {
         imu.on('change', () => {
           const imu_data_pkg = [imu.thermometer.celsius - 18, imu.accelerometer.x, imu.accelerometer.y, imu.accelerometer.z, imu.accelerometer.pitch, imu.accelerometer.roll, imu.accelerometer.acceleration, imu.accelerometer.inclination, imu.accelerometer.orientation,
           imu.gyro.x, imu.gyro.y, imu.gyro.z, imu.gyro.pitch, imu.gyro.roll, imu.gyro.yaw, imu.gyro.rate, imu.gyro.isCalibrated];
-          socket.emit('imu_data_pkg_broadcast', {vid: vid, telemetry: imu_data_pkg});
+          socket.emit('imu_data_pkg_broadcast', { vid: vid, telemetry: imu_data_pkg });
           socket.emit('gamma_board_hs');
           imu_connection_status_bin = Date.now();
         });
@@ -360,7 +372,7 @@ socket.on('connect', (s) => {
         accelerometer.on('change', () => {
           const { acceleration, inclination, orientation, pitch, roll, x, y, z } = accelerometer;
           const data_pkg = [acceleration, inclination, orientation, pitch, roll, x, y, z];
-          socket.emit('gyro_data_pkg', {vid: vid, telemetry: data_pkg});
+          socket.emit('gyro_data_pkg', { vid: vid, telemetry: data_pkg });
           socket.emit('gamma_board_hs');
           axdl_connection_status_bin = Date.now();
         })
@@ -379,7 +391,7 @@ socket.on('connect', (s) => {
 
         barometer.on("change", function () {
           var alt_acx = (((Math.pow((101325 / (this.barometer.pressure * 1000)), (1 / 5.257)) - 1) * this.thermometer.kelvin) / 0.0065);
-          socket.emit('barometer_pkg', {vid: vid, telemetry: [this.barometer.pressure, barometer.thermometer.celsius, alt_acx]});
+          socket.emit('barometer_pkg', { vid: vid, telemetry: [this.barometer.pressure, barometer.thermometer.celsius, alt_acx] });
           barometer_connection_status_bin = Date.now();
         });
       }
@@ -396,7 +408,7 @@ socket.on('connect', (s) => {
         gps.on("change", position => {
           const { altitude, latitude, longitude } = position;
           var gps_position_pkg = [longitude, latitude, altitude];
-          socket.emit('gps_position_pkg', {vid: vid, telemetry: gps_position_pkg});
+          socket.emit('gps_position_pkg', { vid: vid, telemetry: gps_position_pkg });
           gps_position_connection_status_bin = Date.now();
           console.log("GPS Position:");
           socket.emit('gamma_board_hs');
@@ -410,13 +422,13 @@ socket.on('connect', (s) => {
           console.log(`${nmea_stnc} lmao`);//[dev]
         });
         gps.on("operations", _sat_ops => {
-          socket.emit('sat_ops', {vid: vid, telemetry: _sat_ops});
+          socket.emit('sat_ops', { vid: vid, telemetry: _sat_ops });
           socket.emit('gamma_board_hs');
         });
         gps.on("navigation", velocity => {
           const { course, speed } = velocity;
           var gps_nav_pkg = [course, speed];
-          socket.emit('gps_nav_pkg', {vid: vid, telemetry: gps_nav_pkg});
+          socket.emit('gps_nav_pkg', { vid: vid, telemetry: gps_nav_pkg });
           gps_nav_connection_status_bin = Date.now();
           socket.emit('gamma_board_hs');
           console.log("GPS Navigation:");
@@ -437,7 +449,7 @@ socket.on('connect', (s) => {
         });
         soanr_1.on("change", () => {
           const { centimeters } = soanr_1;
-          socket.emit('sonar_1_rebound', {vid: vid, telemetry: centimeters});
+          socket.emit('sonar_1_rebound', { vid: vid, telemetry: centimeters });
           socket.emit('gamma_board_hs');
           sonar_1_connection_status_bin = Date.now();
         });
@@ -453,7 +465,7 @@ socket.on('connect', (s) => {
         soanr_2.on("change", () => {
           const { centimeters } = soanr_2;
           console.log(centimeters)
-          socket.emit('sonar_2_rebound', {vid: vid, telemetry: centimeters});
+          socket.emit('sonar_2_rebound', { vid: vid, telemetry: centimeters });
           socket.emit('gamma_board_hs');
           sonar_2_connection_status_bin = Date.now();
         });
@@ -468,7 +480,7 @@ socket.on('connect', (s) => {
         });
         soanr_3.on("change", () => {
           const { centimeters } = soanr_3;
-          socket.emit('sonar_3_rebound', {vid: vid, telemetry: centimeters});
+          socket.emit('sonar_3_rebound', { vid: vid, telemetry: centimeters });
           socket.emit('gamma_board_hs');
           sonar_3_connection_status_bin = Date.now();
         });
@@ -484,7 +496,7 @@ socket.on('connect', (s) => {
         soanr_4.on("change", () => {
           const { centimeters } = soanr_4;
           console.log(`${centimeters} right`)
-          socket.emit('sonar_4_rebound', {vid: vid, telemetry: centimeters});
+          socket.emit('sonar_4_rebound', { vid: vid, telemetry: centimeters });
           socket.emit('gamma_board_hs');
           sonar_4_connection_status_bin = Date.now();
         });
@@ -499,7 +511,7 @@ socket.on('connect', (s) => {
         });
         soanr_5.on("change", () => {
           const { centimeters } = soanr_5;
-          socket.emit('sonar_5_rebound', {vid: vid, telemetry: centimeters});
+          socket.emit('sonar_5_rebound', { vid: vid, telemetry: centimeters });
           socket.emit('gamma_board_hs');
           sonar_5_connection_status_bin = Date.now();
         });
@@ -630,7 +642,44 @@ socket.on('connect', (s) => {
     else {
       barometer_connection_status = true;
     }
-    var sensor_array_hardware_cs;
+    var sensor_array_hardware_cs;//legacy
+
+    let hardware_status_obj = {};
+
+    function system_overall_status_assessment(system_hardware_status_array) {
+      let system_overall_status = true;
+      for (let ix = 0; ix < system_hardware_status_array.length; ix++) {
+        if (!system_hardware_status_array[ix]) {
+          system_overall_status = false;
+        }
+        if (system_hardware_status_array.length - 1 == ix) {
+          return system_overall_status;
+        }
+      }
+    }
+
+    hardware_status_obj = {
+      sonar_array:
+      {
+        fwd_sonar: { status: sonar_1_connection_status },
+        lft_sonar: { status: sonar_2_connection_status },
+        bwd_sonar: { status: sonar_3_connection_status },
+        rgt_sonar: { status: sonar_4_connection_status },
+        gnd_sonar: { status: sonar_5_connection_status },
+        overall_status: system_overall_status_assessment([sonar_1_connection_status, sonar_2_connection_status, sonar_3_connection_status, sonar_4_connection_status, sonar_5_connection_status]),
+      },
+      dynamics: {
+        primary_imu: { status: imu_connected_status },
+        primary_acc: { status: axdl_connection_status },
+        overall_status: system_overall_status_assessment([imu_connected_status, axdl_connection_status]),
+      },
+      navigation: {
+        gps: { status: gps_nav_connection_status },
+        magnetometer: { status: magnetometer_connection_status },
+        barometer: { status: barometer_connection_status },
+        overall_status: system_overall_status_assessment([gps_nav_connection_status, magnetometer_connection_status, barometer_connection_status]),
+      }
+    }
     //Broadcast//
     if (hardware_enabled) {
       sensor_array_hardware_cs = [imu_connected_status, axdl_connection_status, sonar_1_connection_status, sonar_2_connection_status, sonar_3_connection_status, sonar_4_connection_status, sonar_5_connection_status, gps_position_connection_status, barometer_connection_status, magnetometer_connection_status];
@@ -638,19 +687,26 @@ socket.on('connect', (s) => {
     else {
       sensor_array_hardware_cs = [true, true, true, true, true, true, false, true, true, true];
     }
-    socket.emit('sensor_array_hardware_cs', {vid: vid, telemetry: sensor_array_hardware_cs});
 
-    socket.emit('sensor_array_es', {vid: vid, telemetry: sensor_array_active_status});
+    socket.emit('hardware_status', { vid: vid, telemetry: hardware_status_obj });
+
+    socket.emit('sensor_array_hardware_cs', { vid: vid, telemetry: sensor_array_hardware_cs });//legacy
+
+    socket.emit('sensor_array_es', { vid: vid, telemetry: sensor_array_active_status });
   }, 250)
 
   ////--Ping Emitters--////
 
   setInterval(() => {
-    socket.emit('local_server_ping_emitter', {vid: vid, tx: Date.now()});
+    socket.emit('local_server_ping_emitter', { vid: vid, tx: Date.now() });
   }, 50);
 
-  socket.on('local_relay_ping', () => {
-    socket.emit('local_relay_ping_back', {vid: vid});
+  // socket.on('vulture_ping', () => {
+  //   socket.emit('vulture_ping_echo', { vid: vid });
+  // });
+
+  socket.on('req_vulture_connection_vitals', () => {
+    socket.emit('vulture_connection_vitals_res', { tx: Date.now(), vid: vid });
   });
 
   ////--User Input--////
