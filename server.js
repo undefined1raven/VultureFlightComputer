@@ -4,7 +4,7 @@ const app = express();
 const server = http.Server(app);
 const socketio = require('socket.io');
 const path = require('path');
-const io_i = socketio(server);
+const io_i = socketio(server, {path: "/real-time/"});
 const forever = require('forever');
 const five = require('johnny-five');
 const encryptor = require('simple-encryptor')('FJSLG345KJKL43LJKF04KF4MJF034JF0P34KFKWJAPVPSMVNVPXPWFMKNBUBYU');//process.env.WEB_RELAY_ENCRYPTION_KEY
@@ -130,15 +130,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 //H2 local: ws://localhost:3900/
 ///vf
 //vue
-var socket = io.connect("ws://localhost:7780/", { reconnection: true });
-// var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true });
+// var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" });
+var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
 
 //non vue
 // var socket = io.connect("ws://localhost:3300/", { reconnection: true });
 // var socket = io.connect("wss://vulture-uplink.com/", { reconnection: true });
 
 ////--Hardware Status Overview vars--////
-var imu_connected_status;
+var imu_connection_status = false;
 var imu_connection_status_bin = 0;
 var axdl_connection_status_bin = 0;
 var sonar_1_connection_status_bin = 0;
@@ -149,16 +149,16 @@ var sonar_5_connection_status_bin = 0;
 var gps_position_connection_status_bin = 0;
 var gps_nav_connection_status_bin = 0;
 var barometer_connection_status_bin = 0;
-var axdl_connection_status = false;
-var sonar_1_connection_status = false;
-var sonar_2_connection_status = false;
-var sonar_3_connection_status = false;
-var sonar_4_connection_status = false;
+var axdl_connection_status = true;
+var sonar_1_connection_status = true;
+var sonar_2_connection_status = true;
+var sonar_3_connection_status = true;
+var sonar_4_connection_status = true;
 var sonar_5_connection_status = false;
-var gps_position_connection_status = false;
-var gps_nav_connection_status = false;
-var barometer_connection_status = false;
-var magnetometer_connection_status = false;
+var gps_position_connection_status = true;
+var gps_nav_connection_status = true;
+var barometer_connection_status = true;
+var magnetometer_connection_status = true;
 
 var RTH = 0;
 var CA = 0;
@@ -577,78 +577,81 @@ socket.on('connect', (s) => {
 
   ////---Hardware Status Compute and broadcast---////[sar]
   setInterval(() => {
-    //Dynamics//
-    if (Math.abs(imu_connection_status_bin - Date.now()) > 200) {
-      imu_connected_status = false;
-    }
-    else {
-      imu_connected_status = true;
-    }
-    if (Math.abs(axdl_connection_status_bin - Date.now()) > 300) {
-      axdl_connection_status = false;
-    }
-    else {
-      axdl_connection_status = true;
+    if (hardware_enabled) {
+      //Dynamics//
+      if (Math.abs(imu_connection_status_bin - Date.now()) > 200) {
+        imu_connection_status = false;
+      }
+      else {
+        imu_connection_status = true;
+      }
+      if (Math.abs(axdl_connection_status_bin - Date.now()) > 300) {
+        axdl_connection_status = false;
+      }
+      else {
+        axdl_connection_status = true;
+      }
+
+      //Sonar Array//
+      if (Math.abs(sonar_1_connection_status_bin - Date.now()) > 600) {
+        sonar_1_connection_status = false;
+      }
+      else {
+        sonar_1_connection_status = true;
+      }
+      if (Math.abs(sonar_2_connection_status_bin - Date.now()) > 600) {
+        sonar_2_connection_status = false;
+      }
+      else {
+        sonar_2_connection_status = true;
+      }
+      if (Math.abs(sonar_3_connection_status_bin - Date.now()) > 600) {
+        sonar_3_connection_status = false;
+      }
+      else {
+        sonar_3_connection_status = true;
+      }
+      if (Math.abs(sonar_4_connection_status_bin - Date.now()) > 600) {
+        sonar_4_connection_status = false;
+      }
+      else {
+        sonar_4_connection_status = true;
+      }
+      if (Math.abs(sonar_5_connection_status_bin - Date.now()) > 600) {
+        sonar_5_connection_status = false;
+      }
+      else {
+        sonar_5_connection_status = true;
+      }
+
+      //Nav//
+      if (Math.abs(gps_position_connection_status_bin - Date.now()) > 1200) {
+        gps_position_connection_status = false;
+      }
+      else {
+        gps_position_connection_status = true;
+      }
+      if (Math.abs(gps_nav_connection_status_bin - Date.now()) > 600) {
+        gps_nav_connection_status = false;
+      }
+      else {
+        gps_nav_connection_status = true;
+      }
+      if (Math.abs(barometer_connection_status_bin - Date.now()) > 600) {
+        barometer_connection_status = false;
+      }
+      else {
+        barometer_connection_status = true;
+      }
     }
 
-    //Sonar Array//
-    if (Math.abs(sonar_1_connection_status_bin - Date.now()) > 600) {
-      sonar_1_connection_status = false;
-    }
-    else {
-      sonar_1_connection_status = true;
-    }
-    if (Math.abs(sonar_2_connection_status_bin - Date.now()) > 600) {
-      sonar_2_connection_status = false;
-    }
-    else {
-      sonar_2_connection_status = true;
-    }
-    if (Math.abs(sonar_3_connection_status_bin - Date.now()) > 600) {
-      sonar_3_connection_status = false;
-    }
-    else {
-      sonar_3_connection_status = true;
-    }
-    if (Math.abs(sonar_4_connection_status_bin - Date.now()) > 600) {
-      sonar_4_connection_status = false;
-    }
-    else {
-      sonar_4_connection_status = true;
-    }
-    if (Math.abs(sonar_5_connection_status_bin - Date.now()) > 600) {
-      sonar_5_connection_status = false;
-    }
-    else {
-      sonar_5_connection_status = true;
-    }
-
-    //Nav//
-    if (Math.abs(gps_position_connection_status_bin - Date.now()) > 1200) {
-      gps_position_connection_status = false;
-    }
-    else {
-      gps_position_connection_status = true;
-    }
-    if (Math.abs(gps_nav_connection_status_bin - Date.now()) > 600) {
-      gps_nav_connection_status = false;
-    }
-    else {
-      gps_nav_connection_status = true;
-    }
-    if (Math.abs(barometer_connection_status_bin - Date.now()) > 600) {
-      barometer_connection_status = false;
-    }
-    else {
-      barometer_connection_status = true;
-    }
     var sensor_array_hardware_cs;//legacy
 
     let hardware_status_obj = {};
 
     function system_overall_status_assessment(system_hardware_status_array) {
       let system_overall_status = true;
-      for (let ix = 0; ix < system_hardware_status_array.length; ix++) {
+      for (let ix = 0; ix <= system_hardware_status_array.length - 1; ix++) {
         if (!system_hardware_status_array[ix]) {
           system_overall_status = false;
         }
@@ -661,28 +664,28 @@ socket.on('connect', (s) => {
     hardware_status_obj = {
       sonar_array:
       {
-        fwd_sonar: { status: sonar_1_connection_status },
-        lft_sonar: { status: sonar_2_connection_status },
-        bwd_sonar: { status: sonar_3_connection_status },
-        rgt_sonar: { status: sonar_4_connection_status },
-        gnd_sonar: { status: sonar_5_connection_status },
+        fwd_sonar: { status: sonar_1_connection_status, status_type: 0 },//0 == offline | 1 == faulty | 2 == unknown
+        lft_sonar: { status: sonar_2_connection_status, status_type: 0 },
+        bwd_sonar: { status: sonar_3_connection_status, status_type: 0 },
+        rgt_sonar: { status: sonar_4_connection_status, status_type: 0 },
+        gnd_sonar: { status: sonar_5_connection_status, status_type: 0 },
         overall_status: system_overall_status_assessment([sonar_1_connection_status, sonar_2_connection_status, sonar_3_connection_status, sonar_4_connection_status, sonar_5_connection_status]),
       },
       dynamics: {
-        primary_imu: { status: imu_connected_status },
-        primary_acc: { status: axdl_connection_status },
-        overall_status: system_overall_status_assessment([imu_connected_status, axdl_connection_status]),
+        primary_imu: { status: imu_connection_status, status_type: 0 },
+        primary_acc: { status: axdl_connection_status, status_type: 0 },
+        overall_status: system_overall_status_assessment([imu_connection_status, axdl_connection_status]),
       },
       navigation: {
-        gps: { status: gps_nav_connection_status },
-        magnetometer: { status: magnetometer_connection_status },
-        barometer: { status: barometer_connection_status },
+        gps: { status: gps_nav_connection_status, status_type: 0 },
+        magnetometer: { status: magnetometer_connection_status, status_type: 1 },
+        barometer: { status: barometer_connection_status, status_type: 0 },
         overall_status: system_overall_status_assessment([gps_nav_connection_status, magnetometer_connection_status, barometer_connection_status]),
       }
     }
     //Broadcast//
     if (hardware_enabled) {
-      sensor_array_hardware_cs = [imu_connected_status, axdl_connection_status, sonar_1_connection_status, sonar_2_connection_status, sonar_3_connection_status, sonar_4_connection_status, sonar_5_connection_status, gps_position_connection_status, barometer_connection_status, magnetometer_connection_status];
+      sensor_array_hardware_cs = [imu_connection_status, axdl_connection_status, sonar_1_connection_status, sonar_2_connection_status, sonar_3_connection_status, sonar_4_connection_status, sonar_5_connection_status, gps_position_connection_status, barometer_connection_status, magnetometer_connection_status];
     }
     else {
       sensor_array_hardware_cs = [true, true, true, true, true, true, false, true, true, true];
@@ -693,6 +696,7 @@ socket.on('connect', (s) => {
     socket.emit('sensor_array_hardware_cs', { vid: vid, telemetry: sensor_array_hardware_cs });//legacy
 
     socket.emit('sensor_array_es', { vid: vid, telemetry: sensor_array_active_status });
+
   }, 250)
 
   ////--Ping Emitters--////
