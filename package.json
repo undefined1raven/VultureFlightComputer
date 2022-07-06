@@ -19,7 +19,7 @@
     "serialport": "^8.0.8",
     "simple-encryptor": "^4.0.0",
     "socket.io": "^3.0.5",
-    "socket.io-client": "^3.0.5",
+    "socket.io-client": "^3.1.3",
     "socketio": "^1.0.0"
   }
 }

@@ -4,7 +4,7 @@ const app = express();
 const server = http.Server(app);
 const socketio = require('socket.io');
 const path = require('path');
-const io_i = socketio(server, {path: "/real-time/"});
+const io_i = socketio(server, { path: "/real-time/" });
 const forever = require('forever');
 const five = require('johnny-five');
 const encryptor = require('simple-encryptor')('FJSLG345KJKL43LJKF04KF4MJF034JF0P34KFKWJAPVPSMVNVPXPWFMKNBUBYU');//process.env.WEB_RELAY_ENCRYPTION_KEY
@@ -48,7 +48,18 @@ omega_sktx.on('connect', () => {
   }, 200);
 });
 
+var xt;
 io_i.on('connection', (x) => {
+  xt = x;
+
+
+  x.on('local_fwd_cam_rtc_req', offer => {
+    socket.emit('fwd_cam_rtc_req', offer);
+  });
+
+  x.on('local_fwd_cam_rtc_res', data => {
+    socket.emit('relayed_fwd_cam_rts_res', data)
+  });
 
   x.on('omega_heartbeat', px => {
     console.log(`Omega Downlink Active | UNX [${Date.now()}]`)
@@ -124,6 +135,10 @@ const e = require('express');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/fwd_cam_broadcaster', (req, res) => {
+  res.sendFile('/home/revs/hot_storage/local_relay/public/fwd_cam_broadcaster.html')
+});
+
 //web_app: wss://vulture-uplink.herokuapp.com/
 //web_app_cx: wss://vulture-uplink.com/
 //local: ws://localhost:3300/
@@ -174,12 +189,23 @@ socket.on("connect_error", (err) => {
 });
 
 
-
 ////--this ⇄ Server | Telemetry Relay to: Advanced_Telemetry F/E, Command--////
 socket.on('connect', (s) => {
 
+  socket.on('relayed_fwd_cam_rtc_res', answer => {
+    xt.emit('local_fwd_cam_rtc_res', answer);
+  });
+
   /// Global Relay handshake ///
+  socket.on('relayed_fwd_cam_rtc_req', (data) => {
+  });//fwd_cam_broadcaster ⇄ this | Initial peer signaling | Relayed to: Advanced_Telemetry F/E
+
+
   socket.emit('vulture_handshake', { handshake_vid: vid });
+
+  socket.on('fwd_video_feed_connection_ilr_x', d => {
+    xt.emit('fwd_video_feed_connection_ilr_x', d)
+  })
 
   ////--Advanced_Telemetry F/E ⇄ Server ⇄ this | Autonomy Pref Sync&Transmission--////
   socket.on('rth_pref_arr_xq', _rth_pref_arr => {
