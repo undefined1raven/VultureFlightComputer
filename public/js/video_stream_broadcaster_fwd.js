@@ -10,7 +10,7 @@ navigator.mediaDevices.enumerateDevices().then(async (devices) => {
         }
     }
     console.log(video_sources_id_arr);
-    return navigator.mediaDevices.getUserMedia({video: { aspectRatio: 1.777777778, frameRate: 30 }, audio: false}).then((stream) => {
+    return navigator.mediaDevices.getUserMedia({video: { aspectRatio: 1.777777778, frameRate: 60 }, audio: false}).then((stream) => {//{ aspectRatio: 1.777777778, frameRate: 30 }
         var broadcaster_peer = new SimplePeer({initiator: true, trickle: false, stream: stream});
         broadcaster_peer.on('signal', (cnt) => {
             carrier.emit('local_fwd_cam_rtc_req', cnt);
@@ -31,7 +31,6 @@ navigator.mediaDevices.enumerateDevices().then(async (devices) => {
             broadcaster_peer.signal(answer);
             console.log(answer) 
         });
-
     }).catch((e) =>{
         root.style.setProperty('--cam_cs_acx_cl', '#FF006B');
         document.getElementById('cam_cs_acx').innerText = `STREAM ERROR [${e}]`;
@@ -51,16 +50,10 @@ window.addEventListener('resize', () => {
     dynamic_font_resize_acx();
 });
 
-carrier.on('video_link_reini_signal', () => {
+carrier.on('downlink_request_signal', () => {
+    console.log(`downlink request received at ${Date.now()}`)
     location.reload();
 });
-carrier.on('fwd_video_link_reini_signal', () => {
-    location.reload();
-});
-
-carrier.on('fwbds', d => {
-    console.log(d)
-})
 
 setInterval(() => {
     carrier.emit('fwd_video_broadcaster_status_sig', Date.now());

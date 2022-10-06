@@ -145,8 +145,8 @@ app.get('/fwd_cam_broadcaster', (req, res) => {
 //H2 local: ws://localhost:3900/
 ///vf
 //vue
-// var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" });
-var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
+var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" });
+// var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
 
 //non vue
 // var socket = io.connect("ws://localhost:3300/", { reconnection: true });
@@ -164,14 +164,14 @@ var sonar_5_connection_status_bin = 0;
 var gps_position_connection_status_bin = 0;
 var gps_nav_connection_status_bin = 0;
 var barometer_connection_status_bin = 0;
-var axdl_connection_status = true;
-var sonar_1_connection_status = true;
-var sonar_2_connection_status = true;
-var sonar_3_connection_status = true;
-var sonar_4_connection_status = true;
+var axdl_connection_status = false;
+var sonar_1_connection_status = false;
+var sonar_2_connection_status = false;
+var sonar_3_connection_status = false;
+var sonar_4_connection_status = false;
 var sonar_5_connection_status = false;
 var gps_position_connection_status = true;
-var gps_nav_connection_status = true;
+var gps_nav_connection_status = false;
 var barometer_connection_status = true;
 var magnetometer_connection_status = true;
 
@@ -191,6 +191,7 @@ socket.on("connect_error", (err) => {
 
 ////--this ⇄ Server | Telemetry Relay to: Advanced_Telemetry F/E, Command--////
 socket.on('connect', (s) => {
+  socket.emit('vulture_handshake', { handshake_vid: vid });
 
   socket.on('relayed_fwd_cam_rtc_res', answer => {
     xt.emit('local_fwd_cam_rtc_res', answer);
@@ -201,7 +202,10 @@ socket.on('connect', (s) => {
   });//fwd_cam_broadcaster ⇄ this | Initial peer signaling | Relayed to: Advanced_Telemetry F/E
 
 
-  socket.emit('vulture_handshake', { handshake_vid: vid });
+  socket.on('relayed_request_vulture_uplink', relayed_request_vulture_uplink_payload => {
+    console.log(`downlink request received at ${Date.now()}`)
+    xt.emit('downlink_request_signal');
+  });
 
   socket.on('fwd_video_feed_connection_ilr_x', d => {
     xt.emit('fwd_video_feed_connection_ilr_x', d)
@@ -383,7 +387,17 @@ socket.on('connect', (s) => {
         imu.on('change', () => {
           const imu_data_pkg = [imu.thermometer.celsius - 18, imu.accelerometer.x, imu.accelerometer.y, imu.accelerometer.z, imu.accelerometer.pitch, imu.accelerometer.roll, imu.accelerometer.acceleration, imu.accelerometer.inclination, imu.accelerometer.orientation,
           imu.gyro.x, imu.gyro.y, imu.gyro.z, imu.gyro.pitch, imu.gyro.roll, imu.gyro.yaw, imu.gyro.rate, imu.gyro.isCalibrated];
+          
+          const imu_alpha_data_pkg = {
+            gyro: {pitch: imu.gyro.pitch, roll: imu.gyro.roll, yaw: imu.gyro.yaw},
+            accelerometer: {pitch: imu.accelerometer.pitch + 14, roll: imu.accelerometer.roll + 27}
+          }
+
+
           socket.emit('imu_data_pkg_broadcast', { vid: vid, telemetry: imu_data_pkg });
+          
+          socket.emit('imu_alpha_data_pkg_broadcast', { vid: vid, telemetry: imu_alpha_data_pkg });
+          
           socket.emit('gamma_board_hs');
           imu_connection_status_bin = Date.now();
         });
