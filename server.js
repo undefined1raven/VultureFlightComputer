@@ -8,7 +8,7 @@ const io_i = socketio(server, { path: "/real-time/" });
 const forever = require('forever');
 const five = require('johnny-five');
 const encryptor = require('simple-encryptor')('FJSLG345KJKL43LJKF04KF4MJF034JF0P34KFKWJAPVPSMVNVPXPWFMKNBUBYU');//process.env.WEB_RELAY_ENCRYPTION_KEY
-const vid = 'a5ef02a9-7838-42bc-b4e8-f156cc1f06c7';//1f81601x-f713-4313-8fdb-f0c4c531c806 [permanent vulture id ref req for data transit]
+const vid = '2932c024-5409-4099-b239-9dc95f778f28';//1f81601x-f713-4313-8fdb-f0c4c531c806 [permanent vulture id ref req for data transit]
 let Servo_, Board_, Proximity_, Accelerometer_, IMU_, GPS_, board_, Pin_;
 
 
@@ -96,7 +96,7 @@ process.on('exit', () => {
 });
 
 //enables or disables hardware link req for dev purposes [dev]
-var hardware_enabled = false;
+var hardware_enabled = true;
 //run forever for remote reboot capabilities
 
 //enables or disables telemetry broadcast of specific sensors dev purposes [dev]
@@ -131,7 +131,6 @@ if (hardware_enabled == true) {
 
 
 var io = require('socket.io-client');
-const e = require('express');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -145,7 +144,7 @@ app.get('/fwd_cam_broadcaster', (req, res) => {
 //H2 local: ws://localhost:3900/
 ///vf
 //vue
-var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" });
+var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
 // var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
 
 //non vue
@@ -204,7 +203,15 @@ socket.on('connect', (s) => {
 
   socket.on('relayed_request_vulture_uplink', relayed_request_vulture_uplink_payload => {
     console.log(`downlink request received at ${Date.now()}`)
-    xt.emit('downlink_request_signal');
+    if (xt != undefined) {
+      xt.emit('downlink_request_signal');
+    }
+  });
+
+  socket.on('FlightInputOnChange', FlightInputOnChangePayload => {
+    if (FlightInputOnChangePayload.vid == vid) {
+      console.log(FlightInputOnChangePayload.telemetry)
+    }
   });
 
   socket.on('fwd_video_feed_connection_ilr_x', d => {
@@ -346,32 +353,43 @@ socket.on('connect', (s) => {
   if (hardware_enabled) {
     board_.on("ready", () => {//hardware interface board ini
 
+      let pin = new five.Pin('A0')
+      pin.read((e, val) => { 
+          // console.log(val)
+      })
+
       ////---Propulsion---////[prop]
 
       ///--Propulsion Manual Testing Controller--///
-      const m1 = new five.ESC(11);//pwmRange:[1290, 2000]
+      const m1 = new five.ESC({ pin: 11 });//pwmRange:[1290, 2000]
       socket.on('m1_manual_thrust_lvl_rebound', (rcvd_m1_thrust_lvl) => {
         if (rcvd_m1_thrust_lvl >= 0 && rcvd_m1_thrust_lvl <= 100) {
           m1.throttle(rcvd_m1_thrust_lvl);
-          console.log(`M1 | --${rcvd_m1_thrust_lvl} | ${Date.now()}`);
+          console.log(`M1 | ${rcvd_m1_thrust_lvl}% | ${Date.now()}`);
         }
       });
 
+      const m2 = new five.ESC({ pin: 9 });//pwmRange:[1290, 2000]
       socket.on('m2_manual_thrust_lvl_rebound', (rcvd_m2_thrust_lvl) => {
         if (rcvd_m2_thrust_lvl >= 0 && rcvd_m2_thrust_lvl <= 100) {
-          console.log(`M2 | --${rcvd_m2_thrust_lvl} | ${Date.now()}`);
+          m2.throttle(rcvd_m2_thrust_lvl);
+          console.log(`M2 | ${rcvd_m2_thrust_lvl}% | ${Date.now()}`);
         }
       });
 
+      const m3 = new five.ESC({ pin: 6 });//pwmRange:[1290, 2000]
       socket.on('m3_manual_thrust_lvl_rebound', (rcvd_m3_thrust_lvl) => {
         if (rcvd_m3_thrust_lvl >= 0 && rcvd_m3_thrust_lvl <= 100) {
-          console.log(`M3 | --${rcvd_m3_thrust_lvl} | ${Date.now()}`);
+          m3.throttle(rcvd_m3_thrust_lvl);
+          console.log(`M3 | ${rcvd_m3_thrust_lvl}% | ${Date.now()}`);
         }
       });
 
+      const m4 = new five.ESC({ pin: 5 });//pwmRange:[1290, 2000]
       socket.on('m4_manual_thrust_lvl_rebound', (rcvd_m4_thrust_lvl) => {
         if (rcvd_m4_thrust_lvl >= 0 && rcvd_m4_thrust_lvl <= 100) {
-          console.log(`M4 | --${rcvd_m4_thrust_lvl} | ${Date.now()}`);
+          m4.throttle(rcvd_m4_thrust_lvl);
+          console.log(`M4 | ${rcvd_m4_thrust_lvl}% | ${Date.now()}`);
         }
       });
 
@@ -387,17 +405,17 @@ socket.on('connect', (s) => {
         imu.on('change', () => {
           const imu_data_pkg = [imu.thermometer.celsius - 18, imu.accelerometer.x, imu.accelerometer.y, imu.accelerometer.z, imu.accelerometer.pitch, imu.accelerometer.roll, imu.accelerometer.acceleration, imu.accelerometer.inclination, imu.accelerometer.orientation,
           imu.gyro.x, imu.gyro.y, imu.gyro.z, imu.gyro.pitch, imu.gyro.roll, imu.gyro.yaw, imu.gyro.rate, imu.gyro.isCalibrated];
-          
+
           const imu_alpha_data_pkg = {
-            gyro: {pitch: imu.gyro.pitch, roll: imu.gyro.roll, yaw: imu.gyro.yaw},
-            accelerometer: {pitch: imu.accelerometer.pitch + 14, roll: imu.accelerometer.roll + 27}
+            gyro: { pitch: imu.gyro.pitch, roll: imu.gyro.roll, yaw: imu.gyro.yaw },
+            accelerometer: { pitch: imu.accelerometer.pitch + 14, roll: imu.accelerometer.roll + 27 }
           }
 
 
           socket.emit('imu_data_pkg_broadcast', { vid: vid, telemetry: imu_data_pkg });
-          
+
           socket.emit('imu_alpha_data_pkg_broadcast', { vid: vid, telemetry: imu_alpha_data_pkg });
-          
+
           socket.emit('gamma_board_hs');
           imu_connection_status_bin = Date.now();
         });
@@ -744,6 +762,10 @@ socket.on('connect', (s) => {
   setInterval(() => {
     socket.emit('local_server_ping_emitter', { vid: vid, tx: Date.now() });
   }, 50);
+
+  setInterval(() => {
+    socket.emit('vulture_heartbeat_emitter', { vid: vid, tx: Date.now() });
+  }, 1000);
 
   // socket.on('vulture_ping', () => {
   //   socket.emit('vulture_ping_echo', { vid: vid });
