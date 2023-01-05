@@ -8,7 +8,7 @@ const io_i = socketio(server, { path: "/real-time/" });
 const forever = require('forever');
 const five = require('johnny-five');
 const encryptor = require('simple-encryptor')('FJSLG345KJKL43LJKF04KF4MJF034JF0P34KFKWJAPVPSMVNVPXPWFMKNBUBYU');//process.env.WEB_RELAY_ENCRYPTION_KEY
-const vid = '2932c024-5409-4099-b239-9dc95f778f28';//1f81601x-f713-4313-8fdb-f0c4c531c806 [permanent vulture id ref req for data transit]
+const vid = 'a5ef02a9-7838-42bc-b4e8-f156cc1f06c7';//  1f81601x-f713-4313-8fdb-f0c4c531c806 [permanent vulture id ref req for data transit]
 let Servo_, Board_, Proximity_, Accelerometer_, IMU_, GPS_, board_, Pin_;
 
 
@@ -36,22 +36,30 @@ var omega_sktx = omega_iox.connect("ws://localhost:7200/", { reconnection: true 
 var omega_controller_last_unx = 0;
 var omega_controller_cs = false;
 
-omega_sktx.on('connect', () => {
+omega_sktx.on('connect', (x) => {
   console.log(`Omega Uplink Active | UNX [${Date.now()}]`)
+
+  omega_sktx.on('baseThrustLvl', thrust_lvl => {
+    baseThrustLvl = thrust_lvl
+  });
+
   setInterval(() => {
+    omega_sktx.emit('FLT_CTRL', FLT_OBJ)
+    omega_sktx.emit('FLT_EAX', FLT_EAX)
     if (Math.abs(omega_controller_last_unx - Date.now()) > 1000) {
       omega_controller_cs = false;
     }
     else {
       omega_controller_cs = true;
     }
-  }, 200);
+  }, 10);
 });
 
 var xt;
+
+let baseThrustLvl = -1
 io_i.on('connection', (x) => {
   xt = x;
-
 
   x.on('local_fwd_cam_rtc_req', offer => {
     socket.emit('fwd_cam_rtc_req', offer);
@@ -64,6 +72,9 @@ io_i.on('connection', (x) => {
   x.on('omega_heartbeat', px => {
     console.log(`Omega Downlink Active | UNX [${Date.now()}]`)
   });
+
+
+
   x.on('omega_ct', unx => {
     omega_controller_last_unx = unx.payload;
   });
@@ -71,6 +82,8 @@ io_i.on('connection', (x) => {
     socket.emit('imu_data_pkg_broadcast', omega_telemetry_pkg.payload);
   });
 });
+
+
 ///HIB Connection Status Handler///
 setInterval(() => {
   socket.emit('omega_controller_cs', omega_controller_cs);
@@ -179,6 +192,9 @@ var CA = 0;
 var WNAV = 0;
 var OBJ_RECOG = 0;
 
+var FLT_OBJ = { rollRate: 0, pitchRate: 0, yawRate: 0, altRate: 0 };
+var FLT_EAX = false;
+
 //experimental hard reset for specific sensors
 var imu_pin_;
 var axdl_pin_;
@@ -188,9 +204,18 @@ socket.on("connect_error", (err) => {
 });
 
 
+let currentM1 = 0
+let currentM2 = 0
+let currentM3 = 0
+let currentM4 = 0
+
 ////--this ⇄ Server | Telemetry Relay to: Advanced_Telemetry F/E, Command--////
 socket.on('connect', (s) => {
   socket.emit('vulture_handshake', { handshake_vid: vid });
+
+  setInterval(() => {
+    socket.emit('baseThrustLvl', currentM1)
+  }, 50);
 
   socket.on('relayed_fwd_cam_rtc_res', answer => {
     xt.emit('local_fwd_cam_rtc_res', answer);
@@ -208,9 +233,25 @@ socket.on('connect', (s) => {
     }
   });
 
+
+
+
+  /// FLT CRITICAL /// 
+
+  let currentAltRate = 0
+  let currentPitchRate = 0
+  let currentRollRate = 0
+
+  socket.on('onEAX', () => {
+    FLT_EAX = !FLT_EAX
+  })
   socket.on('FlightInputOnChange', FlightInputOnChangePayload => {
     if (FlightInputOnChangePayload.vid == vid) {
+      FLT_OBJ = FlightInputOnChangePayload.telemetry
       console.log(FlightInputOnChangePayload.telemetry)
+      currentAltRate = FlightInputOnChangePayload.telemetry.altRate
+      currentPitchRate = FlightInputOnChangePayload.telemetry.pitchRate
+      currentRollRate = FlightInputOnChangePayload.telemetry.rollRate
     }
   });
 
@@ -349,49 +390,185 @@ socket.on('connect', (s) => {
   });
 
 
+
+
+
+
   console.log("uplink established");// client link ack
   if (hardware_enabled) {
     board_.on("ready", () => {//hardware interface board ini
 
       let pin = new five.Pin('A0')
-      pin.read((e, val) => { 
-          // console.log(val)
+      pin.read((e, val) => {
+        // console.log(val)
       })
 
       ////---Propulsion---////[prop]
 
+
+
+      function TargetStateUpdate() {
+        //ALT
+        currentM1 += 0.05 * currentAltRate / 2
+        currentM2 += 0.05 * currentAltRate / 2
+        currentM3 += 0.05 * currentAltRate / 2
+        currentM4 += 0.05 * currentAltRate / 2
+
+
+        //Pitch
+        let cof = { front: 1, back: -1 }
+        if (currentPitchRate > 0) {
+          cof = { front: -1, back: 1 }
+        } else {
+          cof = { front: 1, back: -1 }
+
+        }
+        if (currentPitchRate != 0) {
+          currentM1 += (0.01 * currentPitchRate / 2) * cof.front
+          currentM2 += (0.01 * currentPitchRate / 2) * cof.back
+          currentM3 += (0.01 * currentPitchRate / 2) * cof.back
+          currentM4 += (0.01 * currentPitchRate / 2) * cof.front
+        } else {
+          let avg = (currentM1 + currentM2 + currentM3 + currentM4) / 4
+          currentM1 = avg
+          currentM2 = avg
+          currentM3 = avg
+          currentM4 = avg
+        }
+
+
+
+        //Roll
+        let roll_cof = { left: 1, right: -1 }
+        if (currentRollRate > 0) {
+          roll_cof = { left: -1, right: 1 }
+        } else {
+          roll_cof = { left: 1, right: -1 }
+
+        }
+        if (currentRollRate != 0) {
+          currentM1 += (0.01 * currentRollRate / 2) * roll_cof.right
+          currentM2 += (0.01 * currentRollRate / 2) * roll_cof.right
+          currentM3 += (0.01 * currentRollRate / 2) * roll_cof.left
+          currentM4 += (0.01 * currentRollRate / 2) * roll_cof.left
+        } else {
+          let avg = (currentM1 + currentM2 + currentM3 + currentM4) / 4
+          currentM1 = avg
+          currentM2 = avg
+          currentM3 = avg
+          currentM4 = avg
+        }
+
+
+        if (currentM1 > 100) {
+          currentM1 = 100
+          currentM2 = 100
+          currentM3 = 100
+          currentM4 = 100
+        }
+        if (currentM1 < 0) {
+          currentM1 = 0
+          currentM2 = 0
+          currentM3 = 0
+          currentM4 = 0
+        }
+      }
+
+      function UpdateMotors() {
+        const m1 = new five.ESC({ pin: 11 });//pwmRange:[1290, 2000]
+        if (!FLT_EAX) {
+          if (currentM1 >= 0 && currentM1 <= 100) {
+            m1.throttle(currentM1.toFixed(0));
+            console.log(`M1 | ${currentM1.toFixed(1)}% | ${Date.now()}`);
+          }
+        } else {
+          currentM1 = 0
+          m1.throttle(currentM1.toFixed(0));
+          console.log(`M1 | ${currentM1.toFixed(1)}% | ${Date.now()}`);
+
+        }
+
+        const m2 = new five.ESC({ pin: 9 });//pwmRange:[1290, 2000]
+        if (!FLT_EAX) {
+          if (currentM2 >= 0 && currentM2 <= 100) {
+            m2.throttle(currentM2.toFixed(0));
+            console.log(`M2 | ${currentM2.toFixed(1)}% | ${Date.now()}`);
+          }
+        } else {
+          currentM2 = 0
+          m2.throttle(currentM2.toFixed(0));
+          console.log(`M2 | ${currentM2.toFixed(1)}% | ${Date.now()}`);
+        }
+
+        const m3 = new five.ESC({ pin: 6 });//pwmRange:[1290, 2000]
+        if (!FLT_EAX) {
+          if (currentM3 >= 0 && currentM3 <= 100) {
+            m3.throttle(currentM3.toFixed(0));
+            console.log(`M3 | ${currentM3.toFixed(1)}% | ${Date.now()}`);
+          }
+        } else {
+          currentM3 = 0
+          m3.throttle(currentM3.toFixed(0));
+          console.log(`M2 | ${currentM3.toFixed(1)}% | ${Date.now()}`);
+        }
+
+        const m4 = new five.ESC({ pin: 5 });//pwmRange:[1290, 2000]
+        if (!FLT_EAX) {
+          if (currentM4 >= 0 && currentM4 <= 100) {
+            m4.throttle(currentM4.toFixed(0));
+            console.log(`M4 | ${currentM4.toFixed(1)}% | ${Date.now()}`);
+          }
+        } else {
+          currentM4 = 0
+          m4.throttle(currentM4.toFixed(0));
+          console.log(`M4 | ${currentM4.toFixed(1)}% | ${Date.now()}`);
+        }
+      }
+
+      let propDebug = true;
+
+
+      setInterval(() => {
+        if (!propDebug) {
+          TargetStateUpdate()
+          UpdateMotors()
+        }
+      }, 25);
+
       ///--Propulsion Manual Testing Controller--///
-      const m1 = new five.ESC({ pin: 11 });//pwmRange:[1290, 2000]
-      socket.on('m1_manual_thrust_lvl_rebound', (rcvd_m1_thrust_lvl) => {
-        if (rcvd_m1_thrust_lvl >= 0 && rcvd_m1_thrust_lvl <= 100) {
-          m1.throttle(rcvd_m1_thrust_lvl);
-          console.log(`M1 | ${rcvd_m1_thrust_lvl}% | ${Date.now()}`);
-        }
-      });
+      if (propDebug) {
+        const m1 = new five.ESC({ pin: 11 });//pwmRange:[1290, 2000]
+        socket.on('m1_manual_thrust_lvl_rebound', (rcvd_m1_thrust_lvl) => {
+          if (rcvd_m1_thrust_lvl >= 0 && rcvd_m1_thrust_lvl <= 100) {
+            m1.throttle(rcvd_m1_thrust_lvl);
+            console.log(`M1 | ${rcvd_m1_thrust_lvl}% | ${Date.now()}`);
+          }
+        });
 
-      const m2 = new five.ESC({ pin: 9 });//pwmRange:[1290, 2000]
-      socket.on('m2_manual_thrust_lvl_rebound', (rcvd_m2_thrust_lvl) => {
-        if (rcvd_m2_thrust_lvl >= 0 && rcvd_m2_thrust_lvl <= 100) {
-          m2.throttle(rcvd_m2_thrust_lvl);
-          console.log(`M2 | ${rcvd_m2_thrust_lvl}% | ${Date.now()}`);
-        }
-      });
+        const m2 = new five.ESC({ pin: 9 });//pwmRange:[1290, 2000]
+        socket.on('m2_manual_thrust_lvl_rebound', (rcvd_m2_thrust_lvl) => {
+          if (rcvd_m2_thrust_lvl >= 0 && rcvd_m2_thrust_lvl <= 100) {
+            m2.throttle(rcvd_m2_thrust_lvl);
+            console.log(`M2 | ${rcvd_m2_thrust_lvl}% | ${Date.now()}`);
+          }
+        });
 
-      const m3 = new five.ESC({ pin: 6 });//pwmRange:[1290, 2000]
-      socket.on('m3_manual_thrust_lvl_rebound', (rcvd_m3_thrust_lvl) => {
-        if (rcvd_m3_thrust_lvl >= 0 && rcvd_m3_thrust_lvl <= 100) {
-          m3.throttle(rcvd_m3_thrust_lvl);
-          console.log(`M3 | ${rcvd_m3_thrust_lvl}% | ${Date.now()}`);
-        }
-      });
+        const m3 = new five.ESC({ pin: 6 });//pwmRange:[1290, 2000]
+        socket.on('m3_manual_thrust_lvl_rebound', (rcvd_m3_thrust_lvl) => {
+          if (rcvd_m3_thrust_lvl >= 0 && rcvd_m3_thrust_lvl <= 100) {
+            m3.throttle(rcvd_m3_thrust_lvl);
+            console.log(`M3 | ${rcvd_m3_thrust_lvl}% | ${Date.now()}`);
+          }
+        });
 
-      const m4 = new five.ESC({ pin: 5 });//pwmRange:[1290, 2000]
-      socket.on('m4_manual_thrust_lvl_rebound', (rcvd_m4_thrust_lvl) => {
-        if (rcvd_m4_thrust_lvl >= 0 && rcvd_m4_thrust_lvl <= 100) {
-          m4.throttle(rcvd_m4_thrust_lvl);
-          console.log(`M4 | ${rcvd_m4_thrust_lvl}% | ${Date.now()}`);
-        }
-      });
+        const m4 = new five.ESC({ pin: 5 });//pwmRange:[1290, 2000]
+        socket.on('m4_manual_thrust_lvl_rebound', (rcvd_m4_thrust_lvl) => {
+          if (rcvd_m4_thrust_lvl >= 0 && rcvd_m4_thrust_lvl <= 100) {
+            m4.throttle(rcvd_m4_thrust_lvl);
+            console.log(`M4 | ${rcvd_m4_thrust_lvl}% | ${Date.now()}`);
+          }
+        });
+      }
 
 
       ////---Dynamics---////[dyn]
