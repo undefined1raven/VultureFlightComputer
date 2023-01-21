@@ -237,7 +237,7 @@ socket.on('connect', (s) => {
   socket.emit('vulture_handshake', { handshake_vid: vid });
 
   setInterval(() => {
-    socket.emit('baseThrustLvl', currentM1)
+    socket.emit('baseThrustLvl', {m1: currentM1, m2: currentM2, m3: currentM3, m4: currentM4, pitch: currentPitch, roll: currentRoll, EAX: FLT_EAX})
   }, 50);
 
   socket.on('relayed_fwd_cam_rtc_res', answer => {
@@ -434,7 +434,7 @@ socket.on('connect', (s) => {
       */
 
       function rollPID() {
-        let kP = 0.11;
+        let kP = 0.1;
         let kI = 0.000;
         let kD = 0.000;
 
@@ -447,7 +447,7 @@ socket.on('connect', (s) => {
         function magSense(motorID) {
           return { m1: -1, m2: 1, m3: -1, m4: 1 }
         }
-        if (Math.abs(delta) > 14) {
+        if (Math.abs(delta) > 20) {
           if (motRangeCheck(currentM1 + (delta * kP * magSense().m1))) {
             currentM1 = currentM1 + (delta * kP * magSense().m1);
           }
@@ -460,7 +460,7 @@ socket.on('connect', (s) => {
           if (motRangeCheck(currentM4 + (delta * kP * magSense().m4))) {
             currentM4 = currentM4 + (delta * kP * magSense().m4);
           }
-        } else if (Math.abs(currentPitch - targetPitch) < 14) {
+        } else if (Math.abs(currentPitch - targetPitch) < 20) {
           let avg = ((currentM1 + currentM2 + currentM3 + currentM4) / 4)
           currentM1 = avg
           currentM2 = avg
@@ -471,7 +471,7 @@ socket.on('connect', (s) => {
 
       }
       function pitchPID() {
-        let kP = 0.11;
+        let kP = 0.1;
         let kI = 0.000;
         let kD = 0.000;
 
@@ -488,7 +488,7 @@ socket.on('connect', (s) => {
             return { m1: 1, m2: -1, m3: -1, m4: 1 }
           }
         }
-        if (Math.abs(delta) > 14) {
+        if (Math.abs(delta) > 20) {
           if (motRangeCheck(currentM1 + (delta * kP * magSense().m1))) {
             currentM1 = currentM1 + (delta * kP * magSense().m1);
           }
@@ -501,7 +501,7 @@ socket.on('connect', (s) => {
           if (motRangeCheck(currentM4 + (delta * kP * magSense().m4))) {
             currentM4 = currentM4 + (delta * kP * magSense().m4);
           }
-        } else if (Math.abs(currentRoll - targetRoll) < 14) {
+        } else if (Math.abs(currentRoll - targetRoll) < 20) {
           let avg = ((currentM1 + currentM2 + currentM3 + currentM4) / 4)
           currentM1 = avg
           currentM2 = avg
@@ -639,10 +639,12 @@ socket.on('connect', (s) => {
 
       setInterval(() => {
         if (!propDebug) {
-          TargetStateUpdate()
-          UpdateMotors()
-          pitchPID()
-          rollPID()
+          if(!FLT_EAX){
+            TargetStateUpdate()
+            UpdateMotors()
+            pitchPID()
+            rollPID()
+          }
         }
       }, 25);
 
