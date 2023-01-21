@@ -12,6 +12,17 @@ const vid = 'a5ef02a9-7838-42bc-b4e8-f156cc1f06c7';//  1f81601x-f713-4313-8fdb-f
 let Servo_, Board_, Proximity_, Accelerometer_, IMU_, GPS_, board_, Pin_;
 
 
+function RangeScaler(
+  num,
+  in_min,
+  in_max,
+  out_min,
+  out_max
+) {
+  return (
+    ((num - in_min) * (out_max - out_min)) / (in_max - in_min) + out_min
+  )
+}
 
 ///--Omega Hardware Interface Board COMMS--///
 
@@ -204,10 +215,22 @@ socket.on("connect_error", (err) => {
 });
 
 
-let currentM1 = 0
-let currentM2 = 0
-let currentM3 = 0
-let currentM4 = 0
+/// FLT CRITICAL /// 
+
+let currentAltRate = 0
+let currentPitchRate = 0
+let currentRollRate = 0
+
+let currentM1 = 0;
+let currentM2 = 0;
+let currentM3 = 0;
+let currentM4 = 0;
+
+let currentPitch = 0;
+let targetPitch = 0;
+
+let currentRoll = 0;
+let targetRoll = 0;
 
 ////--this ⇄ Server | Telemetry Relay to: Advanced_Telemetry F/E, Command--////
 socket.on('connect', (s) => {
@@ -236,14 +259,13 @@ socket.on('connect', (s) => {
 
 
 
-  /// FLT CRITICAL /// 
 
-  let currentAltRate = 0
-  let currentPitchRate = 0
-  let currentRollRate = 0
 
   socket.on('onEAX', () => {
     FLT_EAX = !FLT_EAX
+  })
+  socket.on('onFCRestart', () => {
+    process.exit();
   })
   socket.on('FlightInputOnChange', FlightInputOnChangePayload => {
     if (FlightInputOnChangePayload.vid == vid) {
@@ -404,7 +426,93 @@ socket.on('connect', (s) => {
       })
 
       ////---Propulsion---////[prop]
+      /*
+      1-Left Up
+      2-Right down
+      3-Left Down
+      4-Right Up 
+      */
 
+      function rollPID() {
+        let kP = 0.11;
+        let kI = 0.000;
+        let kD = 0.000;
+
+        let delta = currentRoll - targetRoll;
+
+
+        function motRangeCheck(cv) {
+          return cv < 100 && cv >= 0
+        }
+        function magSense(motorID) {
+          return { m1: -1, m2: 1, m3: -1, m4: 1 }
+        }
+        if (Math.abs(delta) > 14) {
+          if (motRangeCheck(currentM1 + (delta * kP * magSense().m1))) {
+            currentM1 = currentM1 + (delta * kP * magSense().m1);
+          }
+          if (motRangeCheck(currentM2 + (delta * kP * magSense().m2))) {
+            currentM2 = currentM2 + (delta * kP * magSense().m2);
+          }
+          if (motRangeCheck(currentM3 + (delta * kP * magSense().m3))) {
+            currentM3 = currentM3 + (delta * kP * magSense().m3);
+          }
+          if (motRangeCheck(currentM4 + (delta * kP * magSense().m4))) {
+            currentM4 = currentM4 + (delta * kP * magSense().m4);
+          }
+        } else if (Math.abs(currentPitch - targetPitch) < 14) {
+          let avg = ((currentM1 + currentM2 + currentM3 + currentM4) / 4)
+          currentM1 = avg
+          currentM2 = avg
+          currentM3 = avg
+          currentM4 = avg
+        }
+        console.log(`P ${parseFloat(currentPitch).toFixed(2)} | DP ${parseFloat(delta).toFixed(2)} | R ${parseFloat(currentRoll).toFixed(2)} | DR ${parseFloat(currentRoll - targetRoll).toFixed(2)} | M1 ${parseFloat(currentM1).toFixed(2)} | M2 ${parseFloat(currentM2).toFixed(2)} | M3 ${parseFloat(currentM3).toFixed(2)} | M4 ${parseFloat(currentM4).toFixed(2)}`)
+
+      }
+      function pitchPID() {
+        let kP = 0.11;
+        let kI = 0.000;
+        let kD = 0.000;
+
+        let delta = currentPitch - targetPitch;
+
+
+        function motRangeCheck(cv) {
+          return cv < 100 && cv >= 0
+        }
+        function magSense(motorID) {
+          if (delta >= 0) {
+            return { m1: 1, m2: -1, m3: -1, m4: 1 }
+          } else {
+            return { m1: 1, m2: -1, m3: -1, m4: 1 }
+          }
+        }
+        if (Math.abs(delta) > 14) {
+          if (motRangeCheck(currentM1 + (delta * kP * magSense().m1))) {
+            currentM1 = currentM1 + (delta * kP * magSense().m1);
+          }
+          if (motRangeCheck(currentM2 + (delta * kP * magSense().m2))) {
+            currentM2 = currentM2 + (delta * kP * magSense().m2);
+          }
+          if (motRangeCheck(currentM3 + (delta * kP * magSense().m3))) {
+            currentM3 = currentM3 + (delta * kP * magSense().m3);
+          }
+          if (motRangeCheck(currentM4 + (delta * kP * magSense().m4))) {
+            currentM4 = currentM4 + (delta * kP * magSense().m4);
+          }
+        } else if (Math.abs(currentRoll - targetRoll) < 14) {
+          let avg = ((currentM1 + currentM2 + currentM3 + currentM4) / 4)
+          currentM1 = avg
+          currentM2 = avg
+          currentM3 = avg
+          currentM4 = avg
+          
+          console.log('r A')
+        }
+
+        console.log(`P ${parseFloat(currentPitch).toFixed(2)} | DP ${parseFloat(delta).toFixed(2)} | R ${parseFloat(currentRoll).toFixed(2)} | DR ${parseFloat(currentRoll - targetRoll).toFixed(2)} | M1 ${parseFloat(currentM1).toFixed(2)} | M2 ${parseFloat(currentM2).toFixed(2)} | M3 ${parseFloat(currentM3).toFixed(2)} | M4 ${parseFloat(currentM4).toFixed(2)}`)
+      }
 
 
       function TargetStateUpdate() {
@@ -434,6 +542,7 @@ socket.on('connect', (s) => {
           currentM2 = avg
           currentM3 = avg
           currentM4 = avg
+          console.log('p A')
         }
 
 
@@ -525,13 +634,15 @@ socket.on('connect', (s) => {
         }
       }
 
-      let propDebug = true;
+      let propDebug = false;
 
 
       setInterval(() => {
         if (!propDebug) {
           TargetStateUpdate()
           UpdateMotors()
+          pitchPID()
+          rollPID()
         }
       }, 25);
 
@@ -594,6 +705,22 @@ socket.on('connect', (s) => {
           socket.emit('imu_alpha_data_pkg_broadcast', { vid: vid, telemetry: imu_alpha_data_pkg });
 
           socket.emit('gamma_board_hs');
+
+
+          ///// INVERTED ON PURPOSE
+          if (imu_alpha_data_pkg.accelerometer.pitch >= 0) {
+            currentRoll = parseFloat(6 + imu_alpha_data_pkg.accelerometer.pitch).toFixed(2)
+          } else {
+            currentRoll = RangeScaler(parseFloat(8 + imu_alpha_data_pkg.accelerometer.pitch).toFixed(2), -53, 0, -90, 0);
+          }
+
+
+          if (imu_alpha_data_pkg.accelerometer.roll >= 0) {
+            currentPitch = RangeScaler(parseFloat(imu_alpha_data_pkg.accelerometer.roll).toFixed(2), 0, 103, 0, 90)
+          } else {
+            currentPitch = RangeScaler(parseFloat(imu_alpha_data_pkg.accelerometer.roll).toFixed(2), -51, 0, -90, 0)
+          }
+
           imu_connection_status_bin = Date.now();
         });
       }
@@ -609,7 +736,10 @@ socket.on('connect', (s) => {
           const data_pkg = [acceleration, inclination, orientation, pitch, roll, x, y, z];
           socket.emit('gyro_data_pkg', { vid: vid, telemetry: data_pkg });
           socket.emit('gamma_board_hs');
+
+
           axdl_connection_status_bin = Date.now();
+          // console.log(data_pkg) // ax
         })
       }
 
