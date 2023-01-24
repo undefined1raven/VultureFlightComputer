@@ -155,6 +155,7 @@ if (hardware_enabled == true) {
 
 
 var io = require('socket.io-client');
+const { Console } = require('console');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -168,8 +169,8 @@ app.get('/fwd_cam_broadcaster', (req, res) => {
 //H2 local: ws://localhost:3900/
 ///vf
 //vue
-// var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
-var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
+var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
+// var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
 
 //non vue
 // var socket = io.connect("ws://localhost:3300/", { reconnection: true });
@@ -226,10 +227,21 @@ let currentM2 = 0;
 let currentM3 = 0;
 let currentM4 = 0;
 
+let lastM1 = 0;
+let lastM2 = 0;
+let lastM3 = 0;
+let lastM4 = 0;
+
 let currentPitch = 0;
+var pitchAcArray = [];
+pitchAcArray.length = 30;
+pitchAcArray.fill(0, 0, 29)
 let targetPitch = 0;
 
 let currentRoll = 0;
+var rollAcArray = [];
+rollAcArray.length = 30
+rollAcArray.fill(0, 0, 29)
 let targetRoll = 0;
 
 ////--this ⇄ Server | Telemetry Relay to: Advanced_Telemetry F/E, Command--////
@@ -237,7 +249,7 @@ socket.on('connect', (s) => {
   socket.emit('vulture_handshake', { handshake_vid: vid });
 
   setInterval(() => {
-    socket.emit('baseThrustLvl', {m1: currentM1, m2: currentM2, m3: currentM3, m4: currentM4, pitch: currentPitch, roll: currentRoll, EAX: FLT_EAX})
+    socket.emit('baseThrustLvl', { m1: currentM1, m2: currentM2, m3: currentM3, m4: currentM4, pitch: currentPitch, roll: currentRoll, EAX: FLT_EAX })
   }, 50);
 
   socket.on('relayed_fwd_cam_rtc_res', answer => {
@@ -270,7 +282,6 @@ socket.on('connect', (s) => {
   socket.on('FlightInputOnChange', FlightInputOnChangePayload => {
     if (FlightInputOnChangePayload.vid == vid) {
       FLT_OBJ = FlightInputOnChangePayload.telemetry
-      console.log(FlightInputOnChangePayload.telemetry)
       currentAltRate = FlightInputOnChangePayload.telemetry.altRate
       currentPitchRate = FlightInputOnChangePayload.telemetry.pitchRate
       currentRollRate = FlightInputOnChangePayload.telemetry.rollRate
@@ -434,7 +445,7 @@ socket.on('connect', (s) => {
       */
 
       function rollPID() {
-        let kP = 0.1;
+        let kP = 0.01;
         let kI = 0.000;
         let kD = 0.000;
 
@@ -444,21 +455,25 @@ socket.on('connect', (s) => {
         function motRangeCheck(cv) {
           return cv < 100 && cv >= 0
         }
-        function magSense(motorID) {
-          return { m1: -1, m2: 1, m3: -1, m4: 1 }
+        function magSense() {
+          if (delta >= 0) {
+            return { m1: -1, m2: 1, m3: -1, m4: 1 }
+          } else {
+            return { m1: 1, m2: -1, m3: 1, m4: -1 }
+          }
         }
         if (Math.abs(delta) > 20) {
-          if (motRangeCheck(currentM1 + (delta * kP * magSense().m1))) {
-            currentM1 = currentM1 + (delta * kP * magSense().m1);
+          if (motRangeCheck(currentM1 + (Math.abs(delta) * kP * magSense().m1))) {
+            currentM1 = currentM1 + (Math.abs(delta) * kP * magSense().m1);
           }
-          if (motRangeCheck(currentM2 + (delta * kP * magSense().m2))) {
-            currentM2 = currentM2 + (delta * kP * magSense().m2);
+          if (motRangeCheck(currentM2 + (Math.abs(delta) * kP * magSense().m2))) {
+            currentM2 = currentM2 + (Math.abs(delta) * kP * magSense().m2);
           }
-          if (motRangeCheck(currentM3 + (delta * kP * magSense().m3))) {
-            currentM3 = currentM3 + (delta * kP * magSense().m3);
+          if (motRangeCheck(currentM3 + (Math.abs(delta) * kP * magSense().m3))) {
+            currentM3 = currentM3 + (Math.abs(delta) * kP * magSense().m3);
           }
-          if (motRangeCheck(currentM4 + (delta * kP * magSense().m4))) {
-            currentM4 = currentM4 + (delta * kP * magSense().m4);
+          if (motRangeCheck(currentM4 + (Math.abs(delta) * kP * magSense().m4))) {
+            currentM4 = currentM4 + (Math.abs(delta) * kP * magSense().m4);
           }
         } else if (Math.abs(currentPitch - targetPitch) < 20) {
           let avg = ((currentM1 + currentM2 + currentM3 + currentM4) / 4)
@@ -471,7 +486,7 @@ socket.on('connect', (s) => {
 
       }
       function pitchPID() {
-        let kP = 0.1;
+        let kP = 0.01;
         let kI = 0.000;
         let kD = 0.000;
 
@@ -483,23 +498,28 @@ socket.on('connect', (s) => {
         }
         function magSense(motorID) {
           if (delta >= 0) {
-            return { m1: 1, m2: -1, m3: -1, m4: 1 }
+            return { m1: -1, m2: 1, m3: 1, m4: -1 }
           } else {
             return { m1: 1, m2: -1, m3: -1, m4: 1 }
           }
         }
         if (Math.abs(delta) > 20) {
-          if (motRangeCheck(currentM1 + (delta * kP * magSense().m1))) {
-            currentM1 = currentM1 + (delta * kP * magSense().m1);
+          if (motRangeCheck(currentM1 + (Math.abs(delta) * kP * magSense().m1))) {
+            currentM1 = currentM1 + Math.abs(delta) * kP * magSense().m1;
+            console.log(delta * kP)
+
           }
-          if (motRangeCheck(currentM2 + (delta * kP * magSense().m2))) {
-            currentM2 = currentM2 + (delta * kP * magSense().m2);
+          if (motRangeCheck(currentM2 + (Math.abs(delta) * kP * magSense().m2))) {
+            currentM2 = currentM2 + Math.abs(delta) * kP * magSense().m2;
+            console.log(Math.abs(delta) * kP)
           }
-          if (motRangeCheck(currentM3 + (delta * kP * magSense().m3))) {
-            currentM3 = currentM3 + (delta * kP * magSense().m3);
+          if (motRangeCheck(currentM3 + (Math.abs(delta) * kP * magSense().m3))) {
+            currentM3 = currentM3 + Math.abs(delta) * kP * magSense().m3;
+            console.log(Math.abs(delta) * kP)
           }
-          if (motRangeCheck(currentM4 + (delta * kP * magSense().m4))) {
-            currentM4 = currentM4 + (delta * kP * magSense().m4);
+          if (motRangeCheck(currentM4 + (Math.abs(delta) * kP * magSense().m4))) {
+            currentM4 = currentM4 + Math.abs(delta) * kP * magSense().m4;
+            console.log(Math.abs(delta) * kP)
           }
         } else if (Math.abs(currentRoll - targetRoll) < 20) {
           let avg = ((currentM1 + currentM2 + currentM3 + currentM4) / 4)
@@ -507,7 +527,7 @@ socket.on('connect', (s) => {
           currentM2 = avg
           currentM3 = avg
           currentM4 = avg
-          
+
           console.log('r A')
         }
 
@@ -517,136 +537,84 @@ socket.on('connect', (s) => {
 
       function TargetStateUpdate() {
         //ALT
-        currentM1 += 0.05 * currentAltRate / 2
-        currentM2 += 0.05 * currentAltRate / 2
-        currentM3 += 0.05 * currentAltRate / 2
-        currentM4 += 0.05 * currentAltRate / 2
-
-
-        //Pitch
-        let cof = { front: 1, back: -1 }
-        if (currentPitchRate > 0) {
-          cof = { front: -1, back: 1 }
-        } else {
-          cof = { front: 1, back: -1 }
-
-        }
-        if (currentPitchRate != 0) {
-          currentM1 += (0.01 * currentPitchRate / 2) * cof.front
-          currentM2 += (0.01 * currentPitchRate / 2) * cof.back
-          currentM3 += (0.01 * currentPitchRate / 2) * cof.back
-          currentM4 += (0.01 * currentPitchRate / 2) * cof.front
-        } else {
-          let avg = (currentM1 + currentM2 + currentM3 + currentM4) / 4
-          currentM1 = avg
-          currentM2 = avg
-          currentM3 = avg
-          currentM4 = avg
-          console.log('p A')
+        if (currentAltRate != 0) {
+          if ((currentM1 + parseInt(currentAltRate / 7)) <= 100 && (currentM1 + parseInt(currentAltRate / 7)) >= 0) {
+            currentM1 = currentM1 + currentAltRate / 7;
+          }
+          if ((currentM2 + parseInt(currentAltRate) / 7) <= 100 && (currentM2 + parseInt(currentAltRate / 7)) >= 0) {
+            currentM2 = currentM2 + currentAltRate / 7;
+          }
+          if ((currentM3 + parseInt(currentAltRate) / 7) <= 100 && (currentM3 + parseInt(currentAltRate / 7)) >= 0) {
+            currentM3 = currentM3 + currentAltRate / 7;
+          }
+          if ((currentM4 + parseInt(currentAltRate / 7)) <= 100 && (currentM4 + parseInt(currentAltRate / 7)) >= 0) {
+            currentM4 = currentM4 + currentAltRate / 7;
+          }
         }
 
-
-
-        //Roll
-        let roll_cof = { left: 1, right: -1 }
-        if (currentRollRate > 0) {
-          roll_cof = { left: -1, right: 1 }
-        } else {
-          roll_cof = { left: 1, right: -1 }
-
-        }
-        if (currentRollRate != 0) {
-          currentM1 += (0.01 * currentRollRate / 2) * roll_cof.right
-          currentM2 += (0.01 * currentRollRate / 2) * roll_cof.right
-          currentM3 += (0.01 * currentRollRate / 2) * roll_cof.left
-          currentM4 += (0.01 * currentRollRate / 2) * roll_cof.left
-        } else {
-          let avg = (currentM1 + currentM2 + currentM3 + currentM4) / 4
-          currentM1 = avg
-          currentM2 = avg
-          currentM3 = avg
-          currentM4 = avg
-        }
-
-
-        if (currentM1 > 100) {
-          currentM1 = 100
-          currentM2 = 100
-          currentM3 = 100
-          currentM4 = 100
-        }
-        if (currentM1 < 0) {
-          currentM1 = 0
-          currentM2 = 0
-          currentM3 = 0
-          currentM4 = 0
-        }
+        // currentM1 = parseInt(currentM1)
+        // currentM2 = parseInt(currentM2)
+        // currentM3 = parseInt(currentM3)
+        // currentM4 = parseInt(currentM4)
       }
 
-      function UpdateMotors() {
-        const m1 = new five.ESC({ pin: 11 });//pwmRange:[1290, 2000]
-        if (!FLT_EAX) {
-          if (currentM1 >= 0 && currentM1 <= 100) {
-            m1.throttle(currentM1.toFixed(0));
-            console.log(`M1 | ${currentM1.toFixed(1)}% | ${Date.now()}`);
-          }
-        } else {
-          currentM1 = 0
-          m1.throttle(currentM1.toFixed(0));
-          console.log(`M1 | ${currentM1.toFixed(1)}% | ${Date.now()}`);
 
-        }
-
-        const m2 = new five.ESC({ pin: 9 });//pwmRange:[1290, 2000]
-        if (!FLT_EAX) {
-          if (currentM2 >= 0 && currentM2 <= 100) {
-            m2.throttle(currentM2.toFixed(0));
-            console.log(`M2 | ${currentM2.toFixed(1)}% | ${Date.now()}`);
-          }
-        } else {
-          currentM2 = 0
-          m2.throttle(currentM2.toFixed(0));
-          console.log(`M2 | ${currentM2.toFixed(1)}% | ${Date.now()}`);
-        }
-
-        const m3 = new five.ESC({ pin: 6 });//pwmRange:[1290, 2000]
-        if (!FLT_EAX) {
-          if (currentM3 >= 0 && currentM3 <= 100) {
-            m3.throttle(currentM3.toFixed(0));
-            console.log(`M3 | ${currentM3.toFixed(1)}% | ${Date.now()}`);
-          }
-        } else {
-          currentM3 = 0
-          m3.throttle(currentM3.toFixed(0));
-          console.log(`M2 | ${currentM3.toFixed(1)}% | ${Date.now()}`);
-        }
-
-        const m4 = new five.ESC({ pin: 5 });//pwmRange:[1290, 2000]
-        if (!FLT_EAX) {
-          if (currentM4 >= 0 && currentM4 <= 100) {
-            m4.throttle(currentM4.toFixed(0));
-            console.log(`M4 | ${currentM4.toFixed(1)}% | ${Date.now()}`);
-          }
-        } else {
-          currentM4 = 0
-          m4.throttle(currentM4.toFixed(0));
-          console.log(`M4 | ${currentM4.toFixed(1)}% | ${Date.now()}`);
-        }
-      }
-
-      let propDebug = false;
+      let propDebug = true;
 
 
       setInterval(() => {
         if (!propDebug) {
-          if(!FLT_EAX){
-            TargetStateUpdate()
-            UpdateMotors()
-            pitchPID()
-            rollPID()
-          }
+          TargetStateUpdate()
+          pitchPID()
+          rollPID()
         }
-      }, 25);
+      }, 150)
+
+      if (!propDebug) {
+        const m1 = new five.ESC({ pin: 11 });//pwmRange:[1290, 2000]
+        const m2 = new five.ESC({ pin: 9 });//pwmRange:[1290, 2000]
+        const m3 = new five.ESC({ pin: 6 });//pwmRange:[1290, 2000]
+        const m4 = new five.ESC({ pin: 5 });//pwmRange:[1290, 2000]
+        setInterval(() => {
+          if (parseInt(currentM1) == 0 && parseInt(currentM2) == 0 && parseInt(currentM3) == 0 && parseInt(currentM4) == 0) {
+            if (currentM1 >= 0 && currentM1 <= 100) {
+              m1.throttle(0);
+              console.log(`M1 | ${parseInt(currentM1)}% | ${Date.now()}`);
+            }
+
+            if (currentM2 >= 0 && currentM2 <= 100) {
+              m2.throttle(0);
+              console.log(`M2 | ${parseInt(currentM2)}% | ${Date.now()}`);
+            }
+
+            if (currentM3 >= 0 && currentM3 <= 100) {
+              m3.throttle(0);
+              console.log(`M3 | ${parseInt(currentM3)}% | ${Date.now()}`);
+            }
+
+            if (currentM4 >= 0 && currentM4 <= 100) {
+              m4.throttle(0);
+              console.log(`M4 | ${parseInt(currentM4)}% | ${Date.now()}`);
+            }
+          }
+          if (currentM1 >= 0 && currentM1 <= 100) {
+            m1.throttle(parseInt(currentM1));
+            console.log(`M1 | ${parseInt(currentM1)}% | ${Date.now()}`);
+          }
+          if (currentM2 >= 0 && currentM2 <= 100) {
+            m2.throttle(parseInt(currentM2));
+            console.log(`M2 | ${parseInt(currentM2)}% | ${Date.now()}`);
+          }
+          if (currentM3 >= 0 && currentM3 <= 100) {
+            m3.throttle(parseInt(currentM3));
+            console.log(`M3 | ${parseInt(currentM3)}% | ${Date.now()}`);
+          }
+          if (currentM4 >= 0 && currentM4 <= 100) {
+            m4.throttle(parseInt(currentM4));
+            console.log(`M4 | ${parseInt(currentM4)}% | ${Date.now()}`);
+          }
+        }, 50);
+      }
 
       ///--Propulsion Manual Testing Controller--///
       if (propDebug) {
@@ -711,16 +679,45 @@ socket.on('connect', (s) => {
 
           ///// INVERTED ON PURPOSE
           if (imu_alpha_data_pkg.accelerometer.pitch >= 0) {
-            currentRoll = parseFloat(6 + imu_alpha_data_pkg.accelerometer.pitch).toFixed(2)
+            instantCurrentRoll = parseFloat(6 + imu_alpha_data_pkg.accelerometer.pitch).toFixed(2)
+            instantCurrentRoll = parseFloat(instantCurrentRoll)
+            rollAcArray.push(instantCurrentRoll);
+            rollAcArray.shift();
+            let rollAcumulated = 0;
+            for (let ix = 0; ix < rollAcArray.length; ix++) {
+              rollAcumulated += rollAcArray[ix];
+            }
+            currentRoll = parseFloat(rollAcumulated / rollAcArray.length, 3)
           } else {
-            currentRoll = RangeScaler(parseFloat(8 + imu_alpha_data_pkg.accelerometer.pitch).toFixed(2), -53, 0, -90, 0);
+            instantCurrentRoll = RangeScaler(parseFloat(8 + imu_alpha_data_pkg.accelerometer.pitch).toFixed(2), -53, 0, -90, 0);
+            rollAcArray.push(instantCurrentRoll);
+            rollAcArray.shift();
+            let rollAcumulated = 0;
+            for (let ix = 0; ix < rollAcArray.length; ix++) {
+              rollAcumulated += rollAcArray[ix];
+            }
+            currentRoll = parseFloat(rollAcumulated / rollAcArray.length, 3)
           }
 
 
           if (imu_alpha_data_pkg.accelerometer.roll >= 0) {
-            currentPitch = RangeScaler(parseFloat(imu_alpha_data_pkg.accelerometer.roll).toFixed(2), 0, 103, 0, 90)
+            instantCurrentPitch = RangeScaler(parseFloat(imu_alpha_data_pkg.accelerometer.roll).toFixed(2), 0, 103, 0, 90)
+            pitchAcArray.push(instantCurrentPitch);
+            pitchAcArray.shift();
+            let pitchAcumulated = 0;
+            for (let ix = 0; ix < pitchAcArray.length; ix++) {
+              pitchAcumulated += pitchAcArray[ix];
+            }
+            currentPitch = parseFloat(pitchAcumulated / pitchAcArray.length, 3) * -1
           } else {
-            currentPitch = RangeScaler(parseFloat(imu_alpha_data_pkg.accelerometer.roll).toFixed(2), -51, 0, -90, 0)
+            instantCurrentPitch = RangeScaler(parseFloat(imu_alpha_data_pkg.accelerometer.roll).toFixed(2), -51, 0, -90, 0)
+            pitchAcArray.push(instantCurrentPitch);
+            pitchAcArray.shift();
+            let pitchAcumulated = 0;
+            for (let ix = 0; ix < pitchAcArray.length; ix++) {
+              pitchAcumulated += pitchAcArray[ix];
+            }
+            currentPitch = parseFloat(pitchAcumulated / pitchAcArray.length, 3) * -1
           }
 
           imu_connection_status_bin = Date.now();
