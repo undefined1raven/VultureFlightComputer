@@ -52,7 +52,7 @@ window.addEventListener('resize', () => {
 
 carrier.on('downlink_request_signal', () => {
     console.log(`downlink request received at ${Date.now()}`)
-    location.reload();
+    // location.reload();
 });
 
 setInterval(() => {

@@ -169,8 +169,8 @@ app.get('/fwd_cam_broadcaster', (req, res) => {
 //H2 local: ws://localhost:3900/
 ///vf
 //vue
-var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
-// var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
+// var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
+var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
 
 //non vue
 // var socket = io.connect("ws://localhost:3300/", { reconnection: true });
@@ -217,6 +217,8 @@ socket.on("connect_error", (err) => {
 
 
 /// FLT CRITICAL /// 
+let TELCO = true;
+
 
 let currentAltRate = 0
 let currentPitchRate = 0
@@ -249,8 +251,8 @@ socket.on('connect', (s) => {
   socket.emit('vulture_handshake', { handshake_vid: vid });
 
   setInterval(() => {
-    socket.emit('baseThrustLvl', { m1: currentM1, m2: currentM2, m3: currentM3, m4: currentM4, pitch: currentPitch, roll: currentRoll, EAX: FLT_EAX })
-  }, 50);
+    socket.emit('baseThrustLvl', { m1: currentM1, m2: currentM2, m3: currentM3, m4: currentM4, pitch: currentPitch, roll: currentRoll, EAX: FLT_EAX, unix: Date.now(), TELCO: TELCO })
+  });
 
   socket.on('relayed_fwd_cam_rtc_res', answer => {
     xt.emit('local_fwd_cam_rtc_res', answer);
@@ -278,6 +280,9 @@ socket.on('connect', (s) => {
   })
   socket.on('onFCRestart', () => {
     process.exit();
+  })
+  socket.on('onTELCO', (status) => {
+    TELCO = status;
   })
   socket.on('FlightInputOnChange', FlightInputOnChangePayload => {
     if (FlightInputOnChangePayload.vid == vid) {
@@ -559,7 +564,7 @@ socket.on('connect', (s) => {
       }
 
 
-      let propDebug = true;
+      let propDebug = false;
 
 
       setInterval(() => {
