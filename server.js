@@ -217,7 +217,7 @@ socket.on("connect_error", (err) => {
 
 
 /// FLT CRITICAL /// 
-let TELCO = true;
+let TELCO = false;
 
 
 let currentAltRate = 0
