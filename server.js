@@ -120,7 +120,7 @@ process.on('exit', () => {
 });
 
 //enables or disables hardware link req for dev purposes [dev]
-var hardware_enabled = true;
+var hardware_enabled = false;
 //run forever for remote reboot capabilities
 
 //enables or disables telemetry broadcast of specific sensors dev purposes [dev]
@@ -169,8 +169,8 @@ app.get('/fwd_cam_broadcaster', (req, res) => {
 //H2 local: ws://localhost:3900/
 ///vf
 //vue
-// var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
-var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
+var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
+// var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
 
 //non vue
 // var socket = io.connect("ws://localhost:3300/", { reconnection: true });
@@ -564,7 +564,7 @@ socket.on('connect', (s) => {
       }
 
 
-      let propDebug = false;
+      let propDebug = true;
 
 
       setInterval(() => {
@@ -1094,52 +1094,5 @@ socket.on('connect', (s) => {
 
 })
 
-// const arr_comp_r = [];
-// const arr_comp_a = [];
-// let r = -1;
-// setInterval(() => {
-//   r = getRandomInt(1, 100);
-//   console.log(r)
-//   let a = getRandomInt(1, 100);
-//   let arr_acx = [r, a];
-//   for(let x = 0; x < arr_acx.length; x++){
-//         if(arr_comp_r.length < 2){
-//           arr_comp_r.push(r);
-//         }
-//         else{
-//           arr_comp_r.shift();
-//           arr_comp_r.push(r);
-//           if(arr_comp_r[0] == arr_comp_r[1]){
-//             console.log('no change')
-//           }
-//           else{
-//             console.log('change detected')
-//           }
-//           console.log(arr_comp_r);
-
-//         }
-//     }
-// }, 1000);
-
-
 server.listen(3410);
 
-
-//cuz vendor fuck up
-// const five = require('johnny-five');
-// const board = new five.Board({port: "COM8"});
-
-// board.on('ready', () => {
-//     console.log('br');
-//     const compass = new Compass({
-//       controller: "fuckyou"
-//     });
-
-//     compass.on("change", () => {
-//       const {bearing, heading} = compass;
-//       console.log("Compass:");
-//       console.log("  bearing     : ", bearing);
-//       console.log("  heading     : ", heading);
-//       console.log("--------------------------------------");
-//     });
-// });
