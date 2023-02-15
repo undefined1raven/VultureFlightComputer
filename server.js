@@ -120,7 +120,7 @@ process.on('exit', () => {
 });
 
 //enables or disables hardware link req for dev purposes [dev]
-var hardware_enabled = false;
+var hardware_enabled = true;
 //run forever for remote reboot capabilities
 
 //enables or disables telemetry broadcast of specific sensors dev purposes [dev]
@@ -169,8 +169,8 @@ app.get('/fwd_cam_broadcaster', (req, res) => {
 //H2 local: ws://localhost:3900/
 ///vf
 //vue
-var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
-// var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
+// var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
+var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
 
 //non vue
 // var socket = io.connect("ws://localhost:3300/", { reconnection: true });
@@ -283,6 +283,24 @@ socket.on('connect', (s) => {
   })
   socket.on('onTELCO', (status) => {
     TELCO = status;
+  })
+  socket.on('onPowerOp', powerOp => {
+    console.log(powerOp.type)
+    var exec = require('child_process').exec;
+    if (powerOp.type == 'shutdown') {
+
+      function shutdown(callback) {
+        exec('sudo shutdown now', function (error, stdout, stderr) { callback(stdout); });
+      }
+
+      shutdown(() => { });
+    } else if (powerOp.type == 'reboot') {
+      function reboot(callback) {
+        exec('sudo shutdown -r now', function (error, stdout, stderr) { callback(stdout); });
+      }
+
+      reboot(() => { });
+    }
   })
   socket.on('FlightInputOnChange', FlightInputOnChangePayload => {
     if (FlightInputOnChangePayload.vid == vid) {
@@ -564,7 +582,7 @@ socket.on('connect', (s) => {
       }
 
 
-      let propDebug = true;
+      let propDebug = false;
 
 
       setInterval(() => {
