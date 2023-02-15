@@ -20,12 +20,12 @@ To have full control over what the Vulture's flight computer does is both a bles
 
 Ideally, this server/app would be broken up in the following way:
 
-Flight Computer/
-├─ COMM Service (handling external COMMS)
-├─ Autonomy Core/
-├── Omega HID Controller
-├── Gamma HID Controller 
-├── Delta HID Controller
+Flight Computer/<br />
+├─ COMM Service (handling external COMMS)<br />
+├─ Autonomy Core/<br />
+├── Omega HID Controller<br />
+├── Gamma HID Controller<br />
+├── Delta HID Controller<br />
 
 (HID == Hardware Interface Board)
 
