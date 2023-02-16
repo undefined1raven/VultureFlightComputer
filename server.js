@@ -252,7 +252,7 @@ socket.on('connect', (s) => {
 
   setInterval(() => {
     socket.emit('baseThrustLvl', { m1: currentM1, m2: currentM2, m3: currentM3, m4: currentM4, pitch: currentPitch, roll: currentRoll, EAX: FLT_EAX, unix: Date.now(), TELCO: TELCO })
-  });
+  }, 100);
 
   socket.on('relayed_fwd_cam_rtc_res', answer => {
     xt.emit('local_fwd_cam_rtc_res', answer);
@@ -678,6 +678,9 @@ socket.on('connect', (s) => {
       ////---Dynamics---////[dyn]
 
       ///--IMU Telemetry Broadcaster & Status Watcher | HID [02C] | [temperture(C), x, y, z, pitch, roll, accel, inclination, orientation, Gyro x, Gyro y, Gyro z, Gyro pitch, Gyro roll, Gyro yaw, Gyro rate, Gyro isCalibrated]--///
+      let lastTelemetryUnix = 0;
+      let telemetry = [];
+
       if (sensor_array_active_status[0] == true) {
         const imu = new IMU_({
           controller: "MPU6050",
@@ -743,9 +746,21 @@ socket.on('connect', (s) => {
             currentPitch = parseFloat(pitchAcumulated / pitchAcArray.length, 3) * -1
           }
 
+          telemetry.push({ 
+            throttle: { m1: currentM1, m2: currentM2, m3: currentM3, m4: currentM4 }, 
+            accel: { pitch: { average: currentPitch, frame: pitchAcArray }, roll: { average: currentRoll, frame: rollAcArray } }, 
+            inputs: {pitch: currentPitchRate, roll: currentRollRate, alt: currentAltRate},
+            TELCO: TELCO,
+            tx: Date.now() });
           imu_connection_status_bin = Date.now();
         });
       }
+
+      setInterval(() => {
+        socket.emit('telemetryLogPackage', { vid: vid, telemetry: telemetry });
+        telemetry = [];
+        lastTelemetryUnix = Date.now();
+      }, 25);
 
       ///--Acc Telemetry Broadcaster & Status Watcher | HID [02E] | [acceleration, inclination, orientation, pitch, roll, x, y, z]--///     
       if (sensor_array_active_status[1] == true) {
