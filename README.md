@@ -1,7 +1,11 @@
 # Project Eagle
 
 ## Status:  
-#### first hover test pending
+
+```diff
+- First Hover Test Failed
+@@ Debugging Causes @@
+```
 
 ## About
 Project Eagle is a project I started 3 years ago with the purpose of building a custom UAV that could be remotely flown from anywhere with a reliable internet connection from both phones and desktops/laptops.
