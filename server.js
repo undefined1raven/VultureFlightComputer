@@ -155,7 +155,6 @@ if (hardware_enabled == true) {
 
 
 var io = require('socket.io-client');
-const { Console } = require('console');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -169,8 +168,8 @@ app.get('/fwd_cam_broadcaster', (req, res) => {
 //H2 local: ws://localhost:3900/
 ///vf
 //vue
-// var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
-var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
+var socket = io.connect("ws://localhost:7780/", { reconnection: true, path: "/real-time/" }); //, path: "/real-time/"
+// var socket = io.connect("wss://vulture-uplinkv.herokuapp.com/", { reconnection: true, path: "/real-time/" });
 
 //non vue
 // var socket = io.connect("ws://localhost:3300/", { reconnection: true });
@@ -308,6 +307,8 @@ socket.on('connect', (s) => {
       currentAltRate = FlightInputOnChangePayload.telemetry.altRate
       currentPitchRate = FlightInputOnChangePayload.telemetry.pitchRate
       currentRollRate = FlightInputOnChangePayload.telemetry.rollRate
+      targetPitch = parseFloat(currentPitchRate).toFixed(2);
+      targetRoll = parseFloat(currentRollRate).toFixed(2);
     }
   });
 
@@ -582,7 +583,7 @@ socket.on('connect', (s) => {
       }
 
 
-      let propDebug = false;
+      let propDebug = true;
 
 
       setInterval(() => {
@@ -750,15 +751,16 @@ socket.on('connect', (s) => {
             throttle: { m1: currentM1, m2: currentM2, m3: currentM3, m4: currentM4 }, 
             accel: { pitch: { average: currentPitch, frame: pitchAcArray }, roll: { average: currentRoll, frame: rollAcArray } }, 
             inputs: {pitch: currentPitchRate, roll: currentRollRate, alt: currentAltRate},
-            TELCO: TELCO,
             tx: Date.now() });
           imu_connection_status_bin = Date.now();
         });
       }
 
       setInterval(() => {
-        socket.emit('telemetryLogPackage', { vid: vid, telemetry: telemetry });
-        telemetry = [];
+        if(telemetry != []){
+          socket.emit('telemetryLogPackage', { vid: vid, telemetry: telemetry, TELCO: TELCO });
+          telemetry = [];
+        }
         lastTelemetryUnix = Date.now();
       }, 25);
 
@@ -1063,7 +1065,7 @@ socket.on('connect', (s) => {
       }
     }
 
-    hardware_status_obj = {
+    hardware_status_obj = { 
       sonar_array:
       {
         fwd_sonar: { status: sonar_1_connection_status, status_type: 0 },//0 == offline | 1 == faulty | 2 == unknown
